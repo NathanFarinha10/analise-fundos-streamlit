@@ -10,6 +10,15 @@ st.set_page_config(layout="wide")
 
 st.title("Análise de Viabilidade de Fundos de Investimento")
 
+# --- NOVO: Lógica de Gerenciamento de Estado ---
+# Inicializa o estado da simulação se ele não existir
+if 'simulacao_rodada' not in st.session_state:
+    st.session_state.simulacao_rodada = False
+
+# Função para ser chamada quando o botão de projeção for clicado
+def rodar_simulacao():
+    st.session_state.simulacao_rodada = True
+
 # --- 1. ENTRADA DE DADOS (SIDEBAR) ---
 with st.sidebar:
     st.header("Parâmetros Gerais")
@@ -77,12 +86,14 @@ with st.sidebar:
             ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo['Spread'], step=0.5, key=f"spread_{i}")
     
     st.markdown("---")
-    run_button = st.button("Gerar Projeção", type="primary")
+    # --- NOVO: Botão agora usa a função de callback ---
+    st.button("Gerar Projeção", on_click=rodar_simulacao, type="primary")
 
 # --- Estrutura de Abas ---
 tab_fluxo, tab_dashboard, tab_dre = st.tabs(["Fluxo de Caixa Detalhado", "Dashboard & Indicadores", "DRE"])
 
-if not run_button:
+# --- NOVO: Lógica de exibição agora depende do session_state ---
+if not st.session_state.simulacao_rodada:
     with tab_fluxo:
         st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
@@ -167,7 +178,6 @@ else:
         df_display.columns = pd.MultiIndex.from_tuples(df_display.columns); df_display = df_display[ordem_final]
         st.dataframe(df_display.style.format({('Geral', 'PL Início'): "R$ {:,.2f}", ('Geral', '(+) Aportes'): "R$ {:,.2f}", ('Geral', '(-) Amortizações'): "R$ {:,.2f}", ('Geral', '(-) Dividendos'): "R$ {:,.2f}", ('Geral', 'PL Final'): "R$ {:,.2f}",('Ativos', 'Volume'): "R$ {:,.2f}", ('Ativos', 'Rend R$'): "R$ {:,.2f}", ('Ativos', '% Alocado'): "{:.2%}", ('Ativos', 'Rend %'): "{:.2%}",('Caixa', 'Volume'): "R$ {:,.2f}", ('Caixa', 'Rend R$'): "R$ {:,.2f}", ('Caixa', '% Alocado'): "{:.2%}", ('Caixa', 'Rend %'): "{:.2%}",('Despesas', 'Total'): "R$ {:,.2f}", ('Despesas', 'Performance'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp R$'): "R$ {:,.2f}", ('Resultado', 'Rend Pós-Desp R$'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp %'): "{:.2%}", ('Resultado', 'Rend Pós-Desp %'): "{:.2%}"} | {('Despesas', f"(-) {d['Nome']}"): "R$ {:,.2f}" for d in st.session_state.lista_despesas}, na_rep="-"))
 
-
     with tab_dashboard:
         st.header("Análise do Investidor")
         if not df.empty:
@@ -242,22 +252,11 @@ else:
                 df_dre_vertical.index = [ano for ano in df_anual.index if ano != df['Ano'].min()]
                 st.subheader("DRE Anual Detalhada")
                 st.dataframe(df_dre_vertical.T.style.format("R$ {:,.2f}", na_rep="-"))
-
                 st.subheader("Análise Visual do Resultado (Gráfico de Cascata)")
                 ano_selecionado = st.selectbox("Selecione o Ano para Análise", options=df_dre_vertical.index)
                 if ano_selecionado:
                     dados_cascata = df_dre_vertical.loc[ano_selecionado]
-                    
-                    # --- CORREÇÃO APLICADA AQUI ---
                     text_values = [f"R$ {v:,.0f}" if v is not None else "" for v in dados_cascata]
-                    
-                    fig = go.Figure(go.Waterfall(
-                        name = str(ano_selecionado), orientation = "v",
-                        measure = ["relative", "relative", "total", "relative"] + ["relative"] * (len(st.session_state.lista_despesas) + 1) + ["total", "relative", "relative", "total"],
-                        x = index_dre,
-                        y = dados_cascata,
-                        text = text_values,
-                        connector = {"line":{"color":"rgb(63, 63, 63)"}},
-                    ))
+                    fig = go.Figure(go.Waterfall(name = str(ano_selecionado), orientation = "v", measure = ["relative", "relative", "total", "relative"] + ["relative"] * (len(st.session_state.lista_despesas) + 1) + ["total", "relative", "relative", "total"], x = index_dre, y = dados_cascata, text = text_values, connector = {"line":{"color":"rgb(63, 63, 63)"}},))
                     fig.update_layout(title=f"Composição do Resultado - {ano_selecionado}", showlegend=True)
                     st.plotly_chart(fig, use_container_width=True)
