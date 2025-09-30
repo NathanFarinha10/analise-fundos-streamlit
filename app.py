@@ -11,7 +11,6 @@ st.set_page_config(layout="wide")
 st.title("Análise de Viabilidade de Fundos de Investimento")
 
 # --- 1. ENTRADA DE DADOS (SIDEBAR) ---
-# (O código da sidebar permanece o mesmo)
 with st.sidebar:
     st.header("Parâmetros Gerais")
     nome_fundo = st.text_input("Nome do Fundo", "Fundo Imobiliário Exemplo")
@@ -88,7 +87,6 @@ if not run_button:
         st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
     # --- 2. MOTOR DE CÁLCULO (sem alterações) ---
-    # (O código do motor de cálculo permanece o mesmo)
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
     meses_total = duracao_anos * 12
@@ -128,7 +126,6 @@ else:
         pl_pre_performance = pl_pos_aportes + (rend_ativos_mes + rend_caixa_mes) - total_despesas_regulares
         taxa_performance_mes = 0
         if calc_performance and mes > perf_carencia and (mes % 12 == 0 or mes == meses_total):
-            # ... performance logic ...
             pass
         total_despesas_mes = total_despesas_regulares + taxa_performance_mes
         rend_pos_desp = (rend_ativos_mes + rend_caixa_mes) - total_despesas_mes
@@ -153,7 +150,6 @@ else:
     if not df.empty:
         df.index = datas_projecao; df['Ano'] = df.index.year
         df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
-        # Cálculos de % movidos para pós-processamento para robustez
         df['Ativos_% Alocado'] = df['Ativos_Volume'] / df['PL Final'].where(df['PL Final'] != 0)
         df['Caixa_% Alocado'] = df['Caixa_Volume'] / df['PL Final'].where(df['PL Final'] != 0)
         df['Ativos_Rend_%'] = df['Ativos_Rend_R$'] / df['Ativos_Volume'].shift(1).where(df['Ativos_Volume'].shift(1) != 0)
@@ -163,9 +159,7 @@ else:
         df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
 
     with tab_fluxo:
-        # (código da aba de fluxo de caixa - sem alterações)
         st.header("Fluxo de Caixa Detalhado")
-        # (código de formatação e exibição do DataFrame permanece o mesmo)
         col_map = {'Ano': ('Período', 'Ano'), 'Mês': ('Período', 'Mês'), 'PL Início': ('Geral', 'PL Início'), '(+) Aportes': ('Geral', '(+) Aportes'), '(-) Amortizações': ('Geral', '(-) Amortizações'), '(-) Dividendos': ('Geral', '(-) Dividendos'), 'PL Final': ('Geral', 'PL Final'), 'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend R$'), 'Ativos_Rend_%': ('Ativos', 'Rend %'), 'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend R$'), 'Caixa_Rend_%': ('Caixa', 'Rend %'), 'Total Despesas': ('Despesas', 'Total'), '(-) Taxa de Performance': ('Despesas', 'Performance'), 'Rend. Pré-Desp_R$': ('Resultado', 'Rend Pré-Desp R$'), 'Rend. Pré-Desp_%': ('Resultado', 'Rend Pré-Desp %'), 'Rend. Pós-Desp_R$': ('Resultado', 'Rend Pós-Desp R$'), 'Rend. Pós-Desp_%': ('Resultado', 'Rend Pós-Desp %')}
         for desp in st.session_state.lista_despesas: col_map[f"(-) {desp['Nome']}"] = ('Despesas', f"(-) {desp['Nome']}")
         df_display = df.rename(columns=col_map)
@@ -175,10 +169,8 @@ else:
 
 
     with tab_dashboard:
-        # (código da aba de dashboard - sem alterações)
         st.header("Análise do Investidor")
         if not df.empty:
-            # Cálculos dos KPIs
             total_distribuido = df['(-) Amortizações'] + df['(-) Dividendos']
             fluxo_investidor_bruto = pd.Series([-(df['(+) Aportes'].iloc[0])] + (total_distribuido - df['(+) Aportes']).iloc[1:].tolist())
             fluxo_investidor_final = fluxo_investidor_bruto.copy()
@@ -193,7 +185,6 @@ else:
             rvpi = df['PL Final'].iloc[-1] / total_investido if total_investido != 0 else 0
             fluxo_investidor_acumulado = fluxo_investidor_bruto.cumsum()
             payback_mes = (fluxo_investidor_acumulado >= 0).idxmax() if (fluxo_investidor_acumulado >= 0).any() else "Não atinge"
-
             st.subheader("Indicadores de Performance")
             cols = st.columns(5)
             cols[0].metric("TIR Anualizada", f"{tir_anual:.2%}" if not pd.isna(tir_anual) else "N/A")
@@ -218,83 +209,55 @@ else:
                 st.write("**Composição do Patrimônio**")
                 st.area_chart(df[['Ativos_Volume', 'Caixa_Volume']].rename(columns={'Ativos_Volume': 'Ativos', 'Caixa_Volume': 'Caixa'}))
 
-    # --- ABA: DRE (GRANDES ALTERAÇÕES) ---
     with tab_dre:
         st.header("Demonstração de Resultados (DRE)")
         if not df.empty and df['Ano'].nunique() > 0:
-            # 1. Agregar dados por ano
             df_anual = df.groupby('Ano').sum()
-
-            # 2. Construir o DataFrame da DRE vertical
             dre_data = []
             index_dre = []
-
             for ano in df_anual.index:
-                if ano == df['Ano'].min(): continue # Pula o ano parcial do início
-                
-                # Dados do ano
+                if ano == df['Ano'].min(): continue
                 receita_ativos = df_anual.loc[ano, 'Ativos_Rend_R$']
                 receita_caixa = df_anual.loc[ano, 'Caixa_Rend_R$']
                 receita_bruta = receita_ativos + receita_caixa
-                
-                # Despesas
                 despesas_anual = {}
                 for desp in st.session_state.lista_despesas:
                     despesas_anual[f"(-) {desp['Nome']}"] = df_anual.loc[ano, f"(-) {desp['Nome']}"]
-                
                 taxa_perf = df_anual.loc[ano, '(-) Taxa de Performance']
                 total_despesas = df_anual.loc[ano, 'Total Despesas']
-                
                 resultado_operacional = receita_bruta - total_despesas
                 dividendos = df_anual.loc[ano, '(-) Dividendos']
                 resultado_liquido = resultado_operacional - dividendos
-
-                # Adiciona ao DRE
-                if not dre_data: # Adiciona o index na primeira iteração
-                    index_dre.extend([
-                        "(+) Receita de Ativos", "(+) Receita de Caixa", "(=) Receita Bruta",
-                        "--- Despesas ---"
-                    ])
+                if not dre_data:
+                    index_dre.extend(["(+) Receita de Ativos", "(+) Receita de Caixa", "(=) Receita Bruta", "--- Despesas ---"])
                     for nome_despesa in despesas_anual.keys(): index_dre.append(nome_despesa)
-                    index_dre.extend([
-                        "(-) Taxa de Performance", "(=) Total Despesas",
-                        "(=) Resultado Operacional (Lucro Caixa)", "(-) Dividendos Distribuídos",
-                        "(=) Resultado Líquido Retido"
-                    ])
-                
-                coluna_ano = [
-                    receita_ativos, receita_caixa, receita_bruta,
-                    None # Linha de separação
-                ]
+                    index_dre.extend(["(-) Taxa de Performance", "(=) Total Despesas", "(=) Resultado Operacional (Lucro Caixa)", "(-) Dividendos Distribuídos", "(=) Resultado Líquido Retido"])
+                coluna_ano = [receita_ativos, receita_caixa, receita_bruta, None]
                 coluna_ano.extend(list(despesas_anual.values()))
-                coluna_ano.extend([
-                    taxa_perf, total_despesas, resultado_operacional,
-                    dividendos, resultado_liquido
-                ])
+                coluna_ano.extend([taxa_perf, total_despesas, resultado_operacional, dividendos, resultado_liquido])
                 dre_data.append(coluna_ano)
 
             if dre_data:
                 df_dre_vertical = pd.DataFrame(dre_data, columns=index_dre)
                 df_dre_vertical.index = [ano for ano in df_anual.index if ano != df['Ano'].min()]
-                
                 st.subheader("DRE Anual Detalhada")
                 st.dataframe(df_dre_vertical.T.style.format("R$ {:,.2f}", na_rep="-"))
 
-                # Gráfico de Cascata
                 st.subheader("Análise Visual do Resultado (Gráfico de Cascata)")
                 ano_selecionado = st.selectbox("Selecione o Ano para Análise", options=df_dre_vertical.index)
-
                 if ano_selecionado:
                     dados_cascata = df_dre_vertical.loc[ano_selecionado]
+                    
+                    # --- CORREÇÃO APLICADA AQUI ---
+                    text_values = [f"R$ {v:,.0f}" if v is not None else "" for v in dados_cascata]
+                    
                     fig = go.Figure(go.Waterfall(
-                        name = str(ano_selecionado),
-                        orientation = "v",
+                        name = str(ano_selecionado), orientation = "v",
                         measure = ["relative", "relative", "total", "relative"] + ["relative"] * (len(st.session_state.lista_despesas) + 1) + ["total", "relative", "relative", "total"],
                         x = index_dre,
                         y = dados_cascata,
-                        text = [f"R$ {v:,.0f}" for v in dados_cascata],
+                        text = text_values,
                         connector = {"line":{"color":"rgb(63, 63, 63)"}},
                     ))
-
                     fig.update_layout(title=f"Composição do Resultado - {ano_selecionado}", showlegend=True)
                     st.plotly_chart(fig, use_container_width=True)
