@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy_financial as npf
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
@@ -19,7 +20,6 @@ with st.sidebar:
     projecao_cdi = st.number_input("Projeção CDI", value=10.0, step=0.5)
     projecao_ipca = st.number_input("Projeção IPCA", value=4.5, step=0.25)
 
-    # --- NOVO: Seção de Despesas ---
     st.subheader("Despesas do Fundo")
     taxa_adm_anual = st.number_input("Taxa de Adm. (% a.a. sobre PL)", value=0.2, step=0.05)
     outras_despesas_fixas = st.number_input("Outras Despesas (R$ fixo / mês)", value=15000, step=1000)
@@ -27,7 +27,7 @@ with st.sidebar:
     st.subheader("Modelagem de Ativos")
     if 'lista_ativos' not in st.session_state:
         st.session_state.lista_ativos = []
-
+    
     def adicionar_ativo():
         st.session_state.lista_ativos.append({
             'Nome': f"Ativo {len(st.session_state.lista_ativos) + 1}", 'Valor': 1000000.0,
@@ -46,21 +46,15 @@ with st.sidebar:
     st.markdown("---")
     run_button = st.button("Gerar Projeção", type="primary")
 
-
 # --- 2. MOTOR DE CÁLCULO E EXIBIÇÃO ---
 if run_button:
     # --- SETUP INICIAL ---
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
     taxa_adm_mensal = taxa_adm_anual / 12 / 100
-
     meses_total = duracao_anos * 12
     datas_projecao = pd.to_datetime([data_inicio + relativedelta(months=i) for i in range(meses_total + 1)])
-    
-    # Dicionário para rastrear o valor atual de cada ativo
     valor_atual_ativos = {i: 0.0 for i in range(len(st.session_state.lista_ativos))}
-    
-    # Lista para armazenar os resultados de cada mês
     lista_fluxos = []
 
     # --- MÊS 0 (SETUP) ---
@@ -72,23 +66,17 @@ if run_button:
     }
     lista_fluxos.append(fluxo_mes_0)
 
-    # --- LOOP DE PROJEÇÃO MENSAL (CORRIGIDO) ---
+    # --- LOOP DE PROJEÇÃO MENSAL ---
     for mes in range(1, meses_total + 1):
         fluxo_anterior = lista_fluxos[-1]
-        fluxo_atual = {}
-
-        # 1. Inicia o caixa e o PL
-        saldo_caixa_inicial = fluxo_anterior['Saldo Caixa Final']
         pl_anterior = fluxo_anterior['Patrimônio Líquido']
+        saldo_caixa_inicial = fluxo_anterior['Saldo Caixa Final']
         
-        # 2. Investe em novos ativos
-        investimentos_mes = 0
+        investimentos_mes = sum(ativo['Valor'] for i, ativo in enumerate(st.session_state.lista_ativos) if ativo['Mês Investimento'] == mes)
         for i, ativo in enumerate(st.session_state.lista_ativos):
             if ativo['Mês Investimento'] == mes:
-                investimentos_mes += ativo['Valor']
                 valor_atual_ativos[i] = ativo['Valor']
         
-        # 3. Calcula a receita dos ativos existentes
         receita_total_ativos = 0
         for i, ativo in enumerate(st.session_state.lista_ativos):
             if mes > ativo['Mês Investimento']:
@@ -98,64 +86,84 @@ if run_button:
                 receita_total_ativos += rendimento_ativo_i
                 valor_atual_ativos[i] += rendimento_ativo_i
         
-        # 4. Calcula as despesas
         despesa_taxa_adm = pl_anterior * taxa_adm_mensal
-        
-        # 5. Calcula o rendimento do caixa
         caixa_para_rendimento = saldo_caixa_inicial - investimentos_mes
         rendimento_caixa = max(0, caixa_para_rendimento) * taxa_cdi_mensal
         
-        # 6. Consolida o caixa final
         saldo_caixa_final = (saldo_caixa_inicial + receita_total_ativos + rendimento_caixa -
                              investimentos_mes - despesa_taxa_adm - outras_despesas_fixas)
                              
-        # 7. Calcula o PL final
         pl_ativos = sum(valor_atual_ativos.values())
         patrimonio_liquido = saldo_caixa_final + pl_ativos
 
-        # 8. Armazena todos os resultados do mês
-        fluxo_atual['Mês'] = mes
-        fluxo_atual['Saldo Caixa Inicial'] = saldo_caixa_inicial
-        fluxo_atual['(+) Aportes'] = 0 # Aportes futuros serão adicionados aqui
-        fluxo_atual['(+) Receita Ativos'] = receita_total_ativos
-        fluxo_atual['(+) Rendimento Caixa'] = rendimento_caixa
-        fluxo_atual['(-) Investimentos'] = investimentos_mes
-        fluxo_atual['(-) Taxa de Adm.'] = despesa_taxa_adm
-        fluxo_atual['(-) Outras Despesas'] = outras_despesas_fixas
-        fluxo_atual['Saldo Caixa Final'] = saldo_caixa_final
-        fluxo_atual['PL Ativos'] = pl_ativos
-        fluxo_atual['Patrimônio Líquido'] = patrimonio_liquido
-        
-        lista_fluxos.append(fluxo_atual)
+        lista_fluxos.append({
+            'Mês': mes, 'Saldo Caixa Inicial': saldo_caixa_inicial, '(+) Aportes': 0,
+            '(+) Receita Ativos': receita_total_ativos, '(+) Rendimento Caixa': rendimento_caixa,
+            '(-) Investimentos': investimentos_mes, '(-) Taxa de Adm.': despesa_taxa_adm,
+            '(-) Outras Despesas': outras_despesas_fixas, 'Saldo Caixa Final': saldo_caixa_final,
+            'PL Ativos': pl_ativos, 'Patrimônio Líquido': patrimonio_liquido
+        })
 
-    # --- EXIBIÇÃO DOS RESULTADOS ---
-    df = pd.DataFrame(lista_fluxos)
+    # --- PÓS-PROCESSAMENTO E CRIAÇÃO DO DATAFRAME ---
+    df = pd.DataFrame(lista_fluxos).set_index('Mês')
     df.index = datas_projecao
+    
+    # --- NOVO: CÁLCULO DOS KPIs ---
+    pl_final = df['Patrimônio Líquido'].iloc[-1]
+    
+    # TIR (IRR) do Projeto
+    fluxo_investidor = [-aporte_inicial] + [0] * (meses_total - 1) + [pl_final]
+    try:
+        tir_mensal = npf.irr(fluxo_investidor)
+        tir_anual = (1 + tir_mensal)**12 - 1
+    except:
+        tir_anual = float('nan') # Em caso de erro no cálculo
 
-    st.header("Fluxo de Caixa Mensal Detalhado")
-    df_display = df.copy()
-    colunas_monetarias = [col for col in df.columns if col not in ['Mês']]
-    for col in colunas_monetarias:
-        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
-    df_display.index = df_display.index.strftime('%Y-%m')
-    st.dataframe(df_display[['Mês'] + colunas_monetarias])
+    # MOIC (Multiple on Invested Capital)
+    moic = pl_final / aporte_inicial if aporte_inicial != 0 else 0
+
+    # --- 3. EXIBIÇÃO DOS RESULTADOS ---
+    st.header("Dashboard de Performance")
+
+    col1, col2 = st.columns(2)
+    col1.metric("TIR Anualizada do Projeto", f"{tir_anual:.2%}" if not pd.isna(tir_anual) else "N/A")
+    col2.metric("MOIC (Múltiplo)", f"{moic:.2f}x")
+
+    st.subheader("Evolução do Patrimônio Líquido")
+    st.line_chart(df['Patrimônio Líquido'])
+    
+    st.subheader("Composição do Patrimônio")
+    st.area_chart(df[['Saldo Caixa Final', 'PL Ativos']])
+
+    st.subheader("Receitas vs. Despesas Mensais")
+    df_receitas = df['(+) Receita Ativos'] + df['(+) Rendimento Caixa']
+    df_despesas = df['(-) Taxa de Adm.'] + df['(-) Outras Despesas']
+    st.bar_chart(pd.DataFrame({'Receitas': df_receitas, 'Despesas': df_despesas}))
 
 
-    @st.cache_data
-    def convert_df_to_excel(df_to_convert):
-        from io import BytesIO
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_to_convert.to_excel(writer, index=True, sheet_name='FluxoCaixa')
-        processed_data = output.getvalue()
-        return processed_data
+    # --- Tabela de Fluxo de Caixa ---
+    with st.expander("Ver Fluxo de Caixa Mensal Detalhado"):
+        df_display = df.copy()
+        colunas_monetarias = [col for col in df.columns]
+        for col in colunas_monetarias:
+            df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}")
+        df_display.index = df_display.index.strftime('%Y-%m')
+        st.dataframe(df_display)
 
-    excel_file = convert_df_to_excel(df)
-    st.download_button(
-        label="📥 Exportar para Excel", data=excel_file,
-        file_name=f"viabilidade_{nome_fundo.replace(' ', '_').lower()}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        @st.cache_data
+        def convert_df_to_excel(df_to_convert):
+            from io import BytesIO
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df_to_convert.to_excel(writer, index=True, sheet_name='FluxoCaixa')
+            processed_data = output.getvalue()
+            return processed_data
 
+        excel_file = convert_df_to_excel(df)
+        st.download_button(
+            label="📥 Exportar para Excel", data=excel_file,
+            file_name=f"viabilidade_{nome_fundo.replace(' ', '_').lower()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 else:
     st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Gerar Projeção' para iniciar a análise.")
