@@ -20,15 +20,14 @@ with st.sidebar:
     projecao_cdi = st.number_input("Projeção CDI", value=10.0, step=0.5)
     projecao_ipca = st.number_input("Projeção IPCA", value=4.5, step=0.25)
 
-    # --- NOVO: Seção de Distribuição de Dividendos ---
     st.subheader("Distribuição de Dividendos")
     calc_dividendos = st.toggle("Calcular Distribuição", value=True)
     if calc_dividendos:
         dist_percentual = st.number_input("Percentual do Lucro Caixa a Distribuir (%)", value=95.0, min_value=0.0, max_value=100.0)
-        dist_frequencia = st.selectbox("Frequência da Distribuição", options=['Semestral', 'Anual'], index=0)
+        # --- ALTERAÇÃO AQUI ---
+        dist_frequencia = st.selectbox("Frequência da Distribuição", options=['Mensal', 'Semestral', 'Anual'], index=1)
 
     st.subheader("Taxa de Performance")
-    # (Código da performance - sem alterações)
     calc_performance = st.toggle("Calcular Taxa de Performance", value=True)
     if calc_performance:
         perf_benchmark = st.selectbox("Benchmark da Performance", options=['CDI', 'IPCA'], index=0)
@@ -39,7 +38,6 @@ with st.sidebar:
         perf_hwm = st.checkbox("Com Linha d'Água (High-Water Mark)", value=True)
 
     st.subheader("Movimentações de Capital")
-    # (Código de aportes/amortizações - sem alterações)
     if 'lista_aportes' not in st.session_state: st.session_state.lista_aportes = []
     if 'lista_amortizacoes' not in st.session_state: st.session_state.lista_amortizacoes = []
     col1, col2 = st.columns(2)
@@ -57,7 +55,6 @@ with st.sidebar:
             amort['Valor'] = st.number_input("Valor da Amortização (R$)", value=float(amort['Valor']), step=100000.0, key=f"amort_valor_{i}")
 
     st.subheader("Despesas do Fundo")
-    # (Código das despesas - sem alterações)
     if 'lista_despesas' not in st.session_state: st.session_state.lista_despesas = [{'Nome': 'Taxa de Adm', 'Tipo': '% do PL', 'Valor': 0.2}]
     if st.button("Adicionar Despesa"): st.session_state.lista_despesas.append({'Nome': f"Despesa {len(st.session_state.lista_despesas) + 1}",'Tipo': 'Fixo Mensal','Valor': 10000.0})
     for i, despesa in enumerate(st.session_state.lista_despesas):
@@ -68,7 +65,6 @@ with st.sidebar:
             else: despesa['Valor'] = st.number_input("Valor (R$)", value=despesa.get('Valor', 10000.0), step=1000.0, key=f"desp_valor_brl_{i}")
 
     st.subheader("Modelagem de Ativos")
-    # (Código dos ativos - sem alterações)
     if 'lista_ativos' not in st.session_state: st.session_state.lista_ativos = []
     if st.button("Adicionar Ativo Genérico"): st.session_state.lista_ativos.append({'Nome': f"Ativo {len(st.session_state.lista_ativos) + 1}",'Valor': 2000000.0,'Mês Investimento': 1,'Benchmark': 'IPCA','Spread': 7.0})
     for i, ativo in enumerate(st.session_state.lista_ativos):
@@ -97,8 +93,6 @@ else:
     valor_individual_ativos = [0.0] * len(st.session_state.lista_ativos)
     high_water_mark = aporte_inicial
     pl_inicio_periodo_perf = aporte_inicial
-    
-    # --- NOVO: Variável de controle dos Dividendos ---
     lucro_caixa_acumulado = 0.0
     
     lista_fluxos = []
@@ -148,15 +142,18 @@ else:
         
         total_despesas_mes = total_despesas_regulares + taxa_performance_mes
 
-        # --- NOVO: Lógica de Cálculo de Dividendos ---
         rend_pos_desp = (rend_ativos_mes + rend_caixa_mes) - total_despesas_mes
         lucro_caixa_acumulado += rend_pos_desp
         
         dividendo_mes = 0
-        meses_frequencia = 6 if dist_frequencia == 'Semestral' else 12
+        # --- ALTERAÇÃO AQUI ---
+        if dist_frequencia == 'Mensal': meses_frequencia = 1
+        elif dist_frequencia == 'Semestral': meses_frequencia = 6
+        else: meses_frequencia = 12
+
         if calc_dividendos and (mes % meses_frequencia == 0 or mes == meses_total):
             dividendo_mes = max(0, lucro_caixa_acumulado * (dist_percentual / 100.0))
-            lucro_caixa_acumulado = 0 # Zera o acumulador após o pagamento
+            lucro_caixa_acumulado = 0
 
         caixa_final_mes = caixa_pos_investimento + rend_caixa_mes - total_despesas_mes - amortizacao_mes - dividendo_mes
         vol_ativos_final_mes = sum(valor_individual_ativos)
@@ -175,7 +172,6 @@ else:
 
     df = pd.DataFrame(lista_fluxos)
     if not df.empty:
-        # (código de pós-processamento - sem alterações)
         df.index = datas_projecao; df['Ano'] = df.index.year
         df['Ativos_% Alocado'] = df['Ativos_Volume'] / df['PL Final']
         df['Caixa_% Alocado'] = df['Caixa_Volume'] / df['PL Final']
@@ -190,7 +186,7 @@ else:
         col_map = {
             'Ano': ('Período', 'Ano'), 'Mês': ('Período', 'Mês'), 'PL Início': ('Geral', 'PL Início'), 
             '(+) Aportes': ('Geral', '(+) Aportes'), '(-) Amortizações': ('Geral', '(-) Amortizações'), 
-            '(-) Dividendos': ('Geral', '(-) Dividendos'), # <-- NOVO
+            '(-) Dividendos': ('Geral', '(-) Dividendos'),
             'PL Final': ('Geral', 'PL Final'),
             'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend R$'), 'Ativos_Rend_%': ('Ativos', 'Rend %'),
             'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend R$'), 'Caixa_Rend_%': ('Caixa', 'Rend %'),
@@ -204,7 +200,7 @@ else:
         df_display.columns = pd.MultiIndex.from_tuples(df_display.columns); df_display = df_display[ordem_final]
         st.dataframe(df_display.style.format({
             ('Geral', 'PL Início'): "R$ {:,.2f}", ('Geral', '(+) Aportes'): "R$ {:,.2f}", ('Geral', '(-) Amortizações'): "R$ {:,.2f}", 
-            ('Geral', '(-) Dividendos'): "R$ {:,.2f}", # <-- NOVO
+            ('Geral', '(-) Dividendos'): "R$ {:,.2f}",
             ('Geral', 'PL Final'): "R$ {:,.2f}",
             ('Ativos', 'Volume'): "R$ {:,.2f}", ('Ativos', 'Rend R$'): "R$ {:,.2f}", ('Ativos', '% Alocado'): "{:.2%}", ('Ativos', 'Rend %'): "{:.2%}",
             ('Caixa', 'Volume'): "R$ {:,.2f}", ('Caixa', 'Rend R$'): "R$ {:,.2f}", ('Caixa', '% Alocado'): "{:.2%}", ('Caixa', 'Rend %'): "{:.2%}",
@@ -234,7 +230,6 @@ else:
             st.subheader("Composição do Patrimônio"); st.area_chart(df[['Ativos_Volume', 'Caixa_Volume']].rename(columns={'Ativos_Volume': 'Ativos', 'Caixa_Volume': 'Caixa'}))
 
     with tab_dre:
-        # (código da aba de DRE - sem alterações)
         st.header("Demonstração de Resultados (DRE)")
         if not df.empty:
             df['Receitas'] = df['Ativos_Rend_R$'] + df['Caixa_Rend_R$']
