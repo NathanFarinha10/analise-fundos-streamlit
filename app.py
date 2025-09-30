@@ -15,9 +15,10 @@ with st.sidebar:
     data_inicio = st.date_input("Data de Início", date(2024, 1, 1))
     duracao_anos = st.number_input("Duração (anos)", value=10, min_value=1, max_value=50)
     aporte_inicial = st.number_input("Aporte Inicial (R$)", value=10000000, step=1000000)
-
+    
     st.subheader("Estratégia de Alocação")
-    perc_alocado_ativos = st.slider("Percentual Alocado em Ativos (%)", 0, 100, 95) / 100.0
+    # This slider is currently for future use, the logic uses the specific asset investments
+    perc_alocado_ativos = st.slider("Percentual Alvo em Ativos (%)", 0, 100, 95) / 100.0
 
     st.subheader("Curvas de Juros (% a.a.)")
     projecao_cdi = st.number_input("Projeção CDI", value=10.0, step=0.5)
@@ -46,7 +47,7 @@ with st.sidebar:
     st.subheader("Modelagem de Ativos")
     if 'lista_ativos' not in st.session_state:
         st.session_state.lista_ativos = []
-    
+
     def adicionar_ativo():
         st.session_state.lista_ativos.append({'Nome': f"Ativo {len(st.session_state.lista_ativos) + 1}",'Valor': 1000000.0,'Mês Investimento': 1,'Benchmark': 'IPCA','Spread': 6.0})
     st.button("Adicionar Ativo Genérico", on_click=adicionar_ativo)
@@ -61,59 +62,59 @@ with st.sidebar:
     st.markdown("---")
     run_button = st.button("Gerar Projeção", type="primary")
 
+# --- Estrutura de Abas ---
 tab_fluxo, tab_dashboard, tab_dre = st.tabs(["Fluxo de Caixa Detalhado", "Dashboard & Indicadores", "DRE"])
 
 if not run_button:
     with tab_fluxo:
         st.info("⬅️ Configure os parâmetros na barra lateral e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
+    # --- 2. MOTOR DE CÁLCULO ---
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
     meses_total = duracao_anos * 12
     datas_projecao = pd.to_datetime([data_inicio + relativedelta(months=i) for i in range(meses_total + 1)])
-    valor_atual_ativos = {f"Ativo_{i}": 0.0 for i in range(len(st.session_state.lista_ativos))}
+    
+    valor_atual_ativos_tracker = {i: 0.0 for i in range(len(st.session_state.lista_ativos))}
     
     lista_fluxos = []
-    fluxo_mes_0 = {'Mês': 0, 'Ano': data_inicio.year, 'PL Início': 0, '(+) Aportes': aporte_inicial}
-    fluxo_mes_0.update({'Ativos_% Alocado': 0, 'Ativos_Volume': 0, 'Ativos_Rend_R$': 0, 'Ativos_Rend_%': 0,
-                        'Caixa_% Alocado': 1, 'Caixa_Volume': aporte_inicial, 'Caixa_Rend_R$': 0, 'Caixa_Rend_%': 0,
-                        'Total Despesas': 0, 'Rend. Pré-Desp_R$': 0, 'Rend. Pré-Desp_%': 0,
-                        'Rend. Pós-Desp_R$': 0, 'Rend. Pós-Desp_%': 0, 'PL Final': aporte_inicial})
+    # MÊS 0 (SETUP)
+    fluxo_mes_0 = {'Mês': 0, 'PL Início': 0, '(+) Aportes': aporte_inicial}
+    fluxo_mes_0.update({'Ativos_Volume': 0, 'Ativos_Rend_R$': 0,
+                        'Caixa_Volume': aporte_inicial, 'Caixa_Rend_R$': 0,
+                        'Total Despesas': 0, 'Rend. Pré-Desp_R$': 0, 'Rend. Pós-Desp_R$': 0, 
+                        'PL Final': aporte_inicial})
     for despesa in st.session_state.lista_despesas:
         fluxo_mes_0[f"(-) {despesa['Nome']}"] = 0
     lista_fluxos.append(fluxo_mes_0)
 
+    # LOOP DE PROJEÇÃO MENSAL
     for mes in range(1, meses_total + 1):
         fluxo_anterior = lista_fluxos[-1]
         pl_inicio_mes = fluxo_anterior['PL Final']
         
-        # Lógica de cálculo...
         saldo_caixa = pl_inicio_mes - fluxo_anterior['Ativos_Volume']
         novos_investimentos = sum(ativo['Valor'] for i, ativo in enumerate(st.session_state.lista_ativos) if ativo['Mês Investimento'] == mes)
         saldo_caixa -= novos_investimentos
         
         rend_ativos_mes = 0
         for i, ativo in enumerate(st.session_state.lista_ativos):
-            valor_ativo_key = f"Ativo_{i}"
             if mes > ativo['Mês Investimento']:
                 spread_mensal = (1 + ativo['Spread'] / 100)**(1/12) - 1
                 taxa_ativo = (1 + (taxa_cdi_mensal if ativo['Benchmark'] == 'CDI' else taxa_ipca_mensal)) * (1 + spread_mensal) - 1
-                rendimento_i = fluxo_anterior.get(valor_ativo_key, 0) * taxa_ativo
+                rendimento_i = valor_atual_ativos_tracker[i] * taxa_ativo
                 rend_ativos_mes += rendimento_i
-                valor_atual_ativos[valor_ativo_key] = fluxo_anterior.get(valor_ativo_key, 0) + rendimento_i
+                valor_atual_ativos_tracker[i] += rendimento_i
             if ativo['Mês Investimento'] == mes:
-                valor_atual_ativos[valor_ativo_key] = ativo['Valor']
+                valor_atual_ativos_tracker[i] = ativo['Valor']
         
-        vol_ativos_final_mes = sum(valor_atual_ativos.values())
+        vol_ativos_final_mes = sum(valor_atual_ativos_tracker.values())
         rend_caixa_mes = max(0, saldo_caixa) * taxa_cdi_mensal
         
         despesas_mes = {}
         total_despesas_mes = 0
         for despesa in st.session_state.lista_despesas:
-            if despesa['Tipo'] == '% do PL':
-                valor_despesa = pl_inicio_mes * (despesa['Valor'] / 100 / 12)
-            else:
-                valor_despesa = despesa['Valor']
+            valor_despesa = pl_inicio_mes * (despesa['Valor'] / 100 / 12) if despesa['Tipo'] == '% do PL' else despesa['Valor']
             despesas_mes[f"(-) {despesa['Nome']}"] = valor_despesa
             total_despesas_mes += valor_despesa
             
@@ -122,64 +123,67 @@ else:
         pl_final_mes = pl_inicio_mes + rend_total_pos_desp
         
         fluxo_atual = {
-            'Mês': mes, 'Ano': datas_projecao[mes].year, 'PL Início': pl_inicio_mes, '(+) Aportes': 0,
-            'Ativos_% Alocado': (vol_ativos_final_mes / pl_final_mes) if pl_final_mes else 0,
+            'Mês': mes, 'PL Início': pl_inicio_mes, '(+) Aportes': 0,
             'Ativos_Volume': vol_ativos_final_mes, 'Ativos_Rend_R$': rend_ativos_mes,
-            'Ativos_Rend_%': (rend_ativos_mes / fluxo_anterior['Ativos_Volume']) if fluxo_anterior['Ativos_Volume'] else 0,
-            'Caixa_% Alocado': ((pl_final_mes - vol_ativos_final_mes) / pl_final_mes) if pl_final_mes else 0,
-            'Caixa_Volume': pl_final_mes - vol_ativos_final_mes,
-            'Caixa_Rend_R$': rend_caixa_mes, 'Caixa_Rend_%': taxa_cdi_mensal,
-            'Total Despesas': total_despesas_mes,
-            'Rend. Pré-Desp_R$': rend_total_pre_desp,
-            'Rend. Pré-Desp_%': (rend_total_pre_desp / pl_inicio_mes) if pl_inicio_mes else 0,
-            'Rend. Pós-Desp_R$': rend_total_pos_desp,
-            'Rend. Pós-Desp_%': (rend_total_pos_desp / pl_inicio_mes) if pl_inicio_mes else 0,
-            'PL Final': pl_final_mes
+            'Caixa_Volume': pl_final_mes - vol_ativos_final_mes, 'Caixa_Rend_R$': rend_caixa_mes,
+            'Total Despesas': total_despesas_mes, 'Rend. Pré-Desp_R$': rend_total_pre_desp,
+            'Rend. Pós-Desp_R$': rend_total_pos_desp, 'PL Final': pl_final_mes
         }
-        for i, (key, value) in enumerate(valor_atual_ativos.items()):
-            fluxo_atual[key] = value
         fluxo_atual.update(despesas_mes)
         lista_fluxos.append(fluxo_atual)
 
-    df = pd.DataFrame(lista_fluxos).set_index('Mês')
-    
-    colunas_ordem = [
-        ('Período', 'Ano'), ('Período', 'Data'), ('Geral', 'PL Início'), ('Geral', '(+) Aportes'),
-        ('Ativos', '% Alocado'), ('Ativos', 'Volume'), ('Ativos', 'Rend. R$'), ('Ativos', 'Rend. %'),
-        ('Caixa', '% Alocado'), ('Caixa', 'Volume'), ('Caixa', 'Rend. R$'), ('Caixa', 'Rend. %')
-    ]
-    for despesa in st.session_state.lista_despesas:
-        colunas_ordem.append(('Despesas', f"(-) {despesa['Nome']}"))
-    colunas_ordem.extend([
-        ('Despesas', 'Total'),
-        ('Resultado', 'Rend. Pré-Desp R$'), ('Resultado', 'Rend. Pré-Desp %'),
-        ('Resultado', 'Rend. Pós-Desp R$'), ('Resultado', 'Rend. Pós-Desp %'),
-        ('Geral', 'PL Final')
-    ])
-    
-    df_display = df.rename(columns={
-        'Ano': ('Período', 'Ano'), 'PL Início': ('Geral', 'PL Início'), '(+) Aportes': ('Geral', '(+) Aportes'),
-        'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend. R$'), 'Ativos_Rend_%': ('Ativos', 'Rend. %'),
-        'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend. R$'), 'Caixa_Rend_%': ('Caixa', 'Rend. %'),
-        'Total Despesas': ('Despesas', 'Total'),
-        'Rend. Pré-Desp_R$': ('Resultado', 'Rend. Pré-Desp R$'), 'Rend. Pré-Desp_%': ('Resultado', 'Rend. Pré-Desp %'),
-        'Rend. Pós-Desp_R$': ('Resultado', 'Rend. Pós-Desp R$'), 'Rend. Pós-Desp_%': ('Resultado', 'Rend. Pós-Desp %'),
-        'PL Final': ('Geral', 'PL Final')
-    })
-    for despesa in st.session_state.lista_despesas:
-        df_display = df_display.rename(columns={f"(-) {despesa['Nome']}": ('Despesas', f"(-) {despesa['Nome']}")})
-    df_display[('Período', 'Data')] = datas_projecao
-    
-    df_display.columns = pd.MultiIndex.from_tuples(df_display.columns)
-    
-    # --- LINHA CORRIGIDA ---
-    df_final_display = df_display.reindex(columns=[col for col in colunas_ordem if col in df_display.columns])
+    # --- 3. PÓS-PROCESSAMENTO E EXIBIÇÃO ---
+    df = pd.DataFrame(lista_fluxos)
+    df.index = datas_projecao # <<< CORREÇÃO APLICADA AQUI
 
+    # Cálculos adicionais para o DataFrame final
+    df['Ano'] = df.index.year
+    df['Ativos_% Alocado'] = df['Ativos_Volume'] / df['PL Final']
+    df['Caixa_% Alocado'] = df['Caixa_Volume'] / df['PL Final']
+    df['Ativos_Rend_%'] = df['Ativos_Rend_R$'] / df['Ativos_Volume'].shift(1).fillna(0)
+    df['Caixa_Rend_%'] = df['Caixa_Rend_R$'] / df['Caixa_Volume'].shift(1).fillna(0)
+    df['Rend. Pré-Desp_%'] = df['Rend. Pré-Desp_R$'] / df['PL Início']
+    df['Rend. Pós-Desp_%'] = df['Rend. Pós-Desp_R$'] / df['PL Início']
+    df = df.fillna(0).replace([float('inf'), -float('inf')], 0)
+
+    # --- ABA: Fluxo de Caixa Detalhado ---
     with tab_fluxo:
         st.header("Fluxo de Caixa Detalhado")
-        # --- (A formatação foi movida para st.dataframe para maior compatibilidade) ---
-        st.dataframe(df_final_display)
+        # Criando o MultiIndex para exibição
+        df_display = df.copy()
+        df_display.rename(columns=lambda c: c.replace('_', ' '), inplace=True)
+        
+        col_tuples = [
+            ('Período', 'Ano'), ('Período', 'Mês'),
+            ('Geral', 'PL Início'), ('Geral', '(+) Aportes'),
+            ('Ativos', '% Alocado'), ('Ativos', 'Volume'), ('Ativos', 'Rend R$'), ('Ativos', 'Rend %'),
+            ('Caixa', '% Alocado'), ('Caixa', 'Volume'), ('Caixa', 'Rend R$'), ('Caixa', 'Rend %')
+        ]
+        for desp in st.session_state.lista_despesas:
+            col_tuples.append(('Despesas', f"(-) {desp['Nome']}"))
+        col_tuples.extend([
+            ('Despesas', 'Total Despesas'),
+            ('Resultado', 'Rend Pré-Desp R$'), ('Resultado', 'Rend Pré-Desp %'),
+            ('Resultado', 'Rend Pós-Desp R$'), ('Resultado', 'Rend Pós-Desp %'),
+            ('Geral', 'PL Final')
+        ])
+        
+        # Mapeamento e reordenação
+        mapa_colunas = {orig: new for orig, new in zip(df_display.columns, col_tuples)}
+        df_display = df_display.rename(columns=mapa_colunas)
+        df_display.columns = pd.MultiIndex.from_tuples(df_display.columns)
 
+        st.dataframe(df_display.style.format({
+             ('Geral', 'PL Início'): "R$ {:,.2f}", ('Geral', '(+) Aportes'): "R$ {:,.2f}", ('Geral', 'PL Final'): "R$ {:,.2f}",
+            ('Ativos', 'Volume'): "R$ {:,.2f}", ('Ativos', 'Rend R$'): "R$ {:,.2f}", ('Ativos', '% Alocado'): "{:.2%}", ('Ativos', 'Rend %'): "{:.2%}",
+            ('Caixa', 'Volume'): "R$ {:,.2f}", ('Caixa', 'Rend R$'): "R$ {:,.2f}", ('Caixa', '% Alocado'): "{:.2%}", ('Caixa', 'Rend %'): "{:.2%}",
+            ('Despesas', 'Total Despesas'): "R$ {:,.2f}",
+            ('Resultado', 'Rend Pré-Desp R$'): "R$ {:,.2f}", ('Resultado', 'Rend Pós-Desp R$'): "R$ {:,.2f}",
+            ('Resultado', 'Rend Pré-Desp %'): "{:.2%}", ('Resultado', 'Rend Pós-Desp %'): "{:.2%}"
+        }, na_rep="-"))
+
+
+    # --- ABA: Dashboard & Indicadores ---
     with tab_dashboard:
         st.header("Dashboard de Performance")
         pl_final = df['PL Final'].iloc[-1]
@@ -198,14 +202,12 @@ else:
         st.subheader("Composição do Patrimônio")
         st.area_chart(df[['Ativos_Volume', 'Caixa_Volume']].rename(columns={'Ativos_Volume': 'Ativos', 'Caixa_Volume': 'Caixa'}))
 
+    # --- ABA: DRE ---
     with tab_dre:
         st.header("Demonstração de Resultados (DRE)")
-        df_dre = df.copy()
-        df_dre['Receitas'] = df['Ativos_Rend_R$'] + df['Caixa_Rend_R$']
-        df_dre['Ano'] = df_dre.index.map(lambda x: x.year)
+        df['Receitas'] = df['Ativos_Rend_R$'] + df['Caixa_Rend_R$']
         
-        # Agrupa por ano
-        dre_anual = df_dre.groupby('Ano').agg({
+        dre_anual = df.groupby('Ano').agg({
             'Receitas': 'sum',
             'Total Despesas': 'sum'
         })
