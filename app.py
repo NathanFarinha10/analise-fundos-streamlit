@@ -55,42 +55,26 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                 amort['Mês'] = st.number_input("Mês", value=amort['Mês'], min_value=1, max_value=duracao_anos*12, key=f"amort_mes_{i}")
                 amort['Valor'] = st.number_input("Valor (R$)", value=float(amort['Valor']), step=100000.0, key=f"amort_valor_{i}")
     
-    # --- ABA DE ATIVOS (ATUALIZADA) ---
     with tab_ativos:
+        # (Código da aba Ativos - sem alterações)
         st.header("Modelagem de Ativos do Fundo")
         if 'lista_ativos' not in st.session_state: st.session_state.lista_ativos = []
-
-        tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", 
-                                       ["Imobiliário - Renda", "CRI / CCI", "Genérico"])
-
+        tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", ["Imobiliário - Renda", "CRI / CCI", "Genérico"])
         if st.button(f"Adicionar {tipo_ativo_novo}"):
             novo_ativo = {'tipo': tipo_ativo_novo}
             if tipo_ativo_novo == "Imobiliário - Renda":
-                novo_ativo.update({
-                    'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1,
-                    'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA',
-                    'Custos Mensais': 2000.0, 'Cap Rate Saida': 7.0
-                })
+                novo_ativo.update({'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1, 'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA', 'Custos Mensais': 2000.0, 'Cap Rate Saida': 7.0})
             elif tipo_ativo_novo == "CRI / CCI":
-                novo_ativo.update({
-                    'Nome': f"CRI {len(st.session_state.lista_ativos) + 1}", 'Principal': 3000000.0, 'Mês Investimento': 1,
-                    'Benchmark': 'IPCA', 'Tipo Taxa': 'Spread', 'Taxa': 6.0, 'Prazo': 120,
-                    'Amortizacao': 'SAC', 'Carencia': 0, 'Tranche': 'Sênior'
-                })
-            else: # Genérico
-                novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
+                novo_ativo.update({'Nome': f"CRI {len(st.session_state.lista_ativos) + 1}", 'Principal': 3000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Tipo Taxa': 'Spread', 'Taxa': 6.0, 'Prazo': 120, 'Amortizacao': 'SAC', 'Carencia': 0, 'Tranche': 'Sênior'})
+            else: novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
             st.session_state.lista_ativos.append(novo_ativo)
-        
         st.markdown("---")
-        
         cols = st.columns(len(st.session_state.lista_ativos)) if st.session_state.lista_ativos else []
         for i, ativo in enumerate(st.session_state.lista_ativos):
             with cols[i]:
                 st.markdown(f"**{ativo.get('Nome')}**")
                 ativo['Nome'] = st.text_input("Nome", value=ativo.get('Nome', ''), key=f"nome_{i}", label_visibility="collapsed")
-                
                 tipo_ativo_atual = ativo.get('tipo')
-
                 if tipo_ativo_atual == "Imobiliário - Renda":
                     st.write("Parâmetros do Imóvel:")
                     ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
@@ -101,7 +85,6 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                     st.write("Custos e Saída:")
                     ativo['Custos Mensais'] = st.number_input("Custos Fixos Mensais (R$)", value=ativo.get('Custos Mensais', 2000.0), key=f"custos_fixos_{i}")
                     ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
-                
                 elif tipo_ativo_atual == "CRI / CCI":
                     st.write("Parâmetros do Título:")
                     ativo['Principal'] = st.number_input("Principal (R$)", value=ativo['Principal'], key=f"principal_{i}")
@@ -113,14 +96,13 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                     ativo['Amortizacao'] = st.selectbox("Amortização", options=['SAC', 'Price', 'Bullet'], key=f"amort_cri_{i}")
                     ativo['Carencia'] = st.number_input("Carência de Amort. (meses)", value=ativo['Carencia'], key=f"carencia_cri_{i}")
                     ativo['Tranche'] = st.selectbox("Série (Tranche)", options=['Sênior', 'Subordinada'], help="Lógica de subordinação será implementada no futuro.", key=f"tranche_cri_{i}")
-
-                else: # Genérico
+                else: 
                     st.write("Parâmetros do Ativo Genérico:")
                     ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo.get('Valor', 0.0)), step=100000.0, key=f"valor_{i}")
                     ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo.get('Mês Investimento', 1), min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
                     ativo['Benchmark'] = st.selectbox(f"Benchmark", options=['IPCA', 'CDI'], index=0 if ativo.get('Benchmark', 'IPCA') == 'IPCA' else 1, key=f"bench_{i}")
                     ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo.get('Spread', 0.0), step=0.5, key=f"spread_{i}")
-
+    
     with tab_despesas:
         # (Código da aba Despesas - sem alterações)
         st.header("Despesas Recorrentes do Fundo")
@@ -158,7 +140,6 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
     st.markdown("---")
     st.button("Gerar Projeção", on_click=rodar_simulacao, type="primary", use_container_width=True)
 
-
 # --- Abas de RESULTADO ---
 tab_fluxo, tab_dashboard, tab_dre = st.tabs(["Fluxo de Caixa Detalhado", "Dashboard & Indicadores", "DRE"])
 
@@ -166,19 +147,18 @@ if not st.session_state.simulacao_rodada:
     with tab_fluxo:
         st.info("⬆️ Configure os parâmetros no painel acima e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
-    # --- 2. MOTOR DE CÁLCULO (LÓGICA DE ATIVOS ATUALIZADA) ---
+    # --- 2. MOTOR DE CÁLCULO (LÓGICA CRI/CCI IMPLEMENTADA) ---
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
-    taxa_igpm_mensal = taxa_ipca_mensal # Simulação, idealmente teria um input próprio
+    taxa_igpm_mensal = taxa_ipca_mensal
     
     meses_total = duracao_anos * 12
     datas_projecao = pd.to_datetime([data_inicio + relativedelta(months=i) for i in range(meses_total + 1)])
     
-    # Trackers individuais para cada ativo
     valor_individual_ativos = [0.0] * len(st.session_state.lista_ativos)
     aluguel_atual_imoveis = [0.0] * len(st.session_state.lista_ativos)
+    saldo_devedor_cris = [0.0] * len(st.session_state.lista_ativos)
 
-    # (demais variáveis de controle - sem alterações)
     high_water_mark = aporte_inicial
     pl_inicio_periodo_perf = aporte_inicial
     lucro_caixa_acumulado = 0.0
@@ -201,29 +181,56 @@ else:
         novos_investimentos_mes = 0
 
         for i, ativo in enumerate(st.session_state.lista_ativos):
-            # Lógica para Ativo Imobiliário
-            if ativo.get('tipo') == "Imobiliário - Renda":
+            tipo_ativo = ativo.get('tipo')
+            
+            # --- LÓGICA CRI / CCI ---
+            if tipo_ativo == "CRI / CCI":
+                if mes >= ativo['Mês Investimento'] and saldo_devedor_cris[i] > 0:
+                    # Cálculo da taxa mensal do CRI
+                    if ativo['Benchmark'] == 'Pré-fixado': taxa_remuneracao_anual = ativo['Taxa'] / 100.0
+                    else: taxa_bench_anual = projecao_ipca / 100.0 if ativo['Benchmark'] == 'IPCA' else projecao_cdi / 100.0
+                    if ativo['Tipo Taxa'] == 'Spread': taxa_remuneracao_anual = (1 + taxa_bench_anual) * (1 + ativo['Taxa'] / 100.0) - 1
+                    else: taxa_remuneracao_anual = taxa_bench_anual * (ativo['Taxa'] / 100.0)
+                    taxa_mensal = (1 + taxa_remuneracao_anual)**(1/12) - 1
+
+                    juros_mes = saldo_devedor_cris[i] * taxa_mensal
+                    amortizacao_cri_mes = 0
+                    
+                    # Cálculo da amortização
+                    if mes >= ativo['Mês Investimento'] + ativo['Carencia']:
+                        if ativo['Amortizacao'] == 'SAC':
+                            amortizacao_cri_mes = ativo['Principal'] / (ativo['Prazo'] - ativo['Carencia'])
+                        elif ativo['Amortizacao'] == 'Bullet' and (mes - ativo['Mês Investimento']) == ativo['Prazo'] -1:
+                            amortizacao_cri_mes = saldo_devedor_cris[i]
+                        # Price é mais complexo, simulando como SAC por enquanto
+                        elif ativo['Amortizacao'] == 'Price': 
+                            amortizacao_cri_mes = ativo['Principal'] / (ativo['Prazo'] - ativo['Carencia'])
+
+                    amortizacao_cri_mes = min(amortizacao_cri_mes, saldo_devedor_cris[i]) # Garante que não amortize mais que o saldo
+                    saldo_devedor_cris[i] -= amortizacao_cri_mes
+                    rend_ativos_mes += juros_mes + amortizacao_cri_mes # Fluxo de caixa para o fundo
+                    valor_individual_ativos[i] = saldo_devedor_cris[i] # O "valor" do ativo é o seu saldo devedor
+
+            # --- LÓGICA IMOBILIÁRIO - RENDA ---
+            elif tipo_ativo == "Imobiliário - Renda":
                 if mes >= ativo['Mês Compra']:
-                    # Reajuste anual do aluguel
                     if (mes - ativo['Mês Compra']) % 12 == 0 and mes > ativo['Mês Compra']:
                         indice_reajuste = taxa_ipca_mensal if ativo['Indice Reajuste'] == 'IPCA' else taxa_igpm_mensal
-                        aluguel_atual_imoveis[i] *= (1 + indice_reajuste * 12) # Reajuste anual
+                        aluguel_atual_imoveis[i] *= (1 + indice_reajuste * 12)
                     
-                    # Receita do mês
                     receita_bruta_imovel = aluguel_atual_imoveis[i]
                     receita_liquida_imovel = receita_bruta_imovel * (1 - ativo['Vacancia'] / 100.0)
                     custos_imovel = ativo['Custos Mensais'] + (receita_bruta_imovel * (ativo.get('Outros Custos % Receita', 0) / 100.0))
                     rend_ativos_mes += receita_liquida_imovel - custos_imovel
+                    valor_individual_ativos[i] += (receita_liquida_imovel - custos_imovel) # Valor do imóvel se valoriza pelo caixa gerado (simplificação)
 
-                # Venda do imóvel no último mês
                 if mes == meses_total:
                     noi_anual = (aluguel_atual_imoveis[i] * (1 - ativo['Vacancia'] / 100.0) - ativo['Custos Mensais']) * 12
                     valor_venda = noi_anual / (ativo['Cap Rate Saida'] / 100.0)
-                    ganho_capital = valor_venda - valor_individual_ativos[i]
-                    rend_ativos_mes += valor_venda # Adiciona o valor de venda ao caixa
-                    valor_individual_ativos[i] = 0 # Zera o valor do ativo após a venda
-                
-            # Lógica para Ativo Genérico
+                    rend_ativos_mes += valor_venda
+                    valor_individual_ativos[i] = 0
+            
+            # --- LÓGICA GENÉRICO ---
             else:
                 if valor_individual_ativos[i] > 0:
                     spread_mensal = (1 + ativo.get('Spread', 0) / 100)**(1/12) - 1
@@ -232,15 +239,21 @@ else:
                     rend_ativos_mes += rendimento_i
                     valor_individual_ativos[i] += rendimento_i
 
-            # Lógica de Compra/Investimento (para todos os tipos)
-            mes_investimento = ativo.get('Mês Compra') if ativo.get('tipo') == "Imobiliário - Renda" else ativo.get('Mês Investimento')
-            valor_investimento = ativo.get('Valor Compra') if ativo.get('tipo') == "Imobiliário - Renda" else ativo.get('Valor')
+            # --- LÓGICA DE INVESTIMENTO (CORRIGIDA) ---
+            if tipo_ativo == "Imobiliário - Renda": mes_investimento, valor_investimento = ativo.get('Mês Compra'), ativo.get('Valor Compra')
+            elif tipo_ativo == "CRI / CCI": mes_investimento, valor_investimento = ativo.get('Mês Investimento'), ativo.get('Principal')
+            else: mes_investimento, valor_investimento = ativo.get('Mês Investimento'), ativo.get('Valor')
             
             if mes == mes_investimento:
                 novos_investimentos_mes += valor_investimento
-                valor_individual_ativos[i] += valor_investimento
-                if ativo.get('tipo') == "Imobiliário - Renda":
+                if tipo_ativo == "CRI / CCI":
+                    saldo_devedor_cris[i] = valor_investimento
+                    valor_individual_ativos[i] = valor_investimento
+                elif tipo_ativo == "Imobiliário - Renda":
+                    valor_individual_ativos[i] = valor_investimento
                     aluguel_atual_imoveis[i] = ativo['Receita Aluguel']
+                else:
+                    valor_individual_ativos[i] += valor_investimento
 
         caixa_pos_investimento = caixa_pos_aportes - novos_investimentos_mes
         rend_caixa_mes = max(0, caixa_pos_investimento) * taxa_cdi_mensal
