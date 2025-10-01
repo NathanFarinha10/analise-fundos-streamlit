@@ -10,128 +10,111 @@ st.set_page_config(layout="wide")
 
 st.title("Análise de Viabilidade de Fundos de Investimento")
 
-# --- Lógica de Gerenciamento de Estado ---
+# (Lógica de Gerenciamento de Estado - sem alterações)
 if 'simulacao_rodada' not in st.session_state:
     st.session_state.simulacao_rodada = False
-
 def rodar_simulacao():
     st.session_state.simulacao_rodada = True
 
-# --- NOVO: PAINEL DE CONFIGURAÇÕES NO TOPO DA PÁGINA ---
+# --- PAINEL DE CONFIGURAÇÕES ---
 with st.expander("Painel de Configurações da Simulação", expanded=True):
-    # Abas para organizar os inputs
     tab_geral, tab_capital, tab_ativos, tab_despesas, tab_distribuicao = st.tabs([
         "Geral & Curvas", "Movimentações de Capital", "Modelagem de Ativos", 
         "Despesas", "Performance & Dividendos"
     ])
 
     with tab_geral:
+        # (Código da aba Geral - sem alterações)
         st.header("Parâmetros Gerais do Fundo")
         col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            nome_fundo = st.text_input("Nome do Fundo", "Fundo Imobiliário Exemplo")
-        with col2:
-            data_inicio = st.date_input("Data de Início", date(2024, 1, 1))
-        with col3:
-            duracao_anos = st.number_input("Duração (anos)", value=10, min_value=1, max_value=50)
-        with col4:
-            aporte_inicial = st.number_input("Aporte Inicial (R$)", value=10000000.0, step=100000.0)
-        
+        with col1: nome_fundo = st.text_input("Nome do Fundo", "Fundo Imobiliário Exemplo")
+        with col2: data_inicio = st.date_input("Data de Início", date(2024, 1, 1))
+        with col3: duracao_anos = st.number_input("Duração (anos)", value=10, min_value=1, max_value=50)
+        with col4: aporte_inicial = st.number_input("Aporte Inicial (R$)", value=10000000.0, step=100000.0)
         st.header("Curvas de Juros (% a.a.)")
         col1, col2 = st.columns(2)
-        with col1:
-            projecao_cdi = st.number_input("Projeção CDI", value=10.0, step=0.5)
-        with col2:
-            projecao_ipca = st.number_input("Projeção IPCA", value=4.5, step=0.25)
+        with col1: projecao_cdi = st.number_input("Projeção CDI", value=10.0, step=0.5)
+        with col2: projecao_ipca = st.number_input("Projeção IPCA", value=4.5, step=0.25)
 
     with tab_capital:
+        # (Código da aba Capital - sem alterações)
         st.header("Aportes e Amortizações Adicionais")
         if 'lista_aportes' not in st.session_state: st.session_state.lista_aportes = []
         if 'lista_amortizacoes' not in st.session_state: st.session_state.lista_amortizacoes = []
-
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Adicionar Aporte"):
-                st.session_state.lista_aportes.append({'Mês': 12, 'Valor': 1000000.0})
+            if st.button("Adicionar Aporte"): st.session_state.lista_aportes.append({'Mês': 12, 'Valor': 1000000.0})
             for i, aporte in enumerate(st.session_state.lista_aportes):
                 st.markdown(f"**Aporte {i+1}**")
                 aporte['Mês'] = st.number_input("Mês", value=aporte['Mês'], min_value=1, max_value=duracao_anos*12, key=f"aporte_mes_{i}")
                 aporte['Valor'] = st.number_input("Valor (R$)", value=float(aporte['Valor']), step=100000.0, key=f"aporte_valor_{i}")
         with col2:
-            if st.button("Adicionar Amortização"):
-                st.session_state.lista_amortizacoes.append({'Mês': 24, 'Valor': 500000.0})
+            if st.button("Adicionar Amortização"): st.session_state.lista_amortizacoes.append({'Mês': 24, 'Valor': 500000.0})
             for i, amort in enumerate(st.session_state.lista_amortizacoes):
                 st.markdown(f"**Amortização {i+1}**")
                 amort['Mês'] = st.number_input("Mês", value=amort['Mês'], min_value=1, max_value=duracao_anos*12, key=f"amort_mes_{i}")
                 amort['Valor'] = st.number_input("Valor (R$)", value=float(amort['Valor']), step=100000.0, key=f"amort_valor_{i}")
-
+    
+    # --- ABA DE ATIVOS (LÓGICA CORRIGIDA) ---
     with tab_ativos:
-            st.header("Modelagem de Ativos do Fundo")
-            if 'lista_ativos' not in st.session_state:
-                st.session_state.lista_ativos = []
-    
-            # Seletor para o tipo de ativo a ser adicionado
-            tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", 
-                                           ["Imobiliário - Renda", "CRI / CCI (em breve)", "Genérico"])
-    
-            if st.button(f"Adicionar {tipo_ativo_novo}"):
-                novo_ativo = {'tipo': tipo_ativo_novo}
-                if tipo_ativo_novo == "Imobiliário - Renda":
-                    novo_ativo.update({
-                        'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1,
-                        'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA',
-                        'IPTU Mensal': 1500.0, 'Seguro Mensal': 500.0, 'Outros Custos % Receita': 2.0,
-                        'Cap Rate Saida': 7.0
-                    })
-                else: # Genérico
-                    novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
-                st.session_state.lista_ativos.append(novo_ativo)
-            
-            st.markdown("---")
-            
-            # Exibe os inputs de acordo com o tipo de cada ativo na lista
-            cols = st.columns(len(st.session_state.lista_ativos)) if st.session_state.lista_ativos else []
-            for i, ativo in enumerate(st.session_state.lista_ativos):
-                with cols[i]:
-                    st.markdown(f"**{ativo.get('Nome')}**")
-                    ativo['Nome'] = st.text_input("Nome", value=ativo['Nome'], key=f"nome_{i}", label_visibility="collapsed")
-                    
-                    if ativo['tipo'] == "Imobiliário - Renda":
-                        st.write("Parâmetros do Imóvel:")
-                        ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
-                        ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo['Mês Compra'], key=f"mes_compra_{i}")
-                        ativo['Receita Aluguel'] = st.number_input("Aluguel Mensal (R$)", value=ativo['Receita Aluguel'], key=f"aluguel_{i}")
-                        ativo['Vacancia'] = st.number_input("Vacância (%)", value=ativo['Vacancia'], key=f"vacancia_{i}")
-                        ativo['Indice Reajuste'] = st.selectbox("Índice de Reajuste Anual", options=['IPCA', 'IGP-M'], key=f"indice_{i}")
-                        st.write("Custos e Saída:")
-                        ativo['Outros Custos % Receita'] = st.number_input("Outros Custos (% da Receita)", value=ativo['Outros Custos % Receita'], key=f"custos_pct_{i}")
-                        ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
-                    
-                    elif ativo['tipo'] == "Genérico":
-                        ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo['Valor']), step=100000.0, key=f"valor_{i}")
-                        ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo['Mês Investimento'], min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
-                        ativo['Benchmark'] = st.selectbox(f"Benchmark", options=['IPCA', 'CDI'], index=0 if ativo['Benchmark'] == 'IPCA' else 1, key=f"bench_{i}")
-                        ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo['Spread'], step=0.5, key=f"spread_{i}")
+        st.header("Modelagem de Ativos do Fundo")
+        if 'lista_ativos' not in st.session_state: st.session_state.lista_ativos = []
 
-    
+        tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", ["Imobiliário - Renda", "Genérico"])
+        if st.button(f"Adicionar {tipo_ativo_novo}"):
+            novo_ativo = {'tipo': tipo_ativo_novo}
+            if tipo_ativo_novo == "Imobiliário - Renda":
+                novo_ativo.update({
+                    'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1,
+                    'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA',
+                    'Custos Mensais': 2000.0, 'Cap Rate Saida': 7.0
+                })
+            else: # Genérico
+                novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
+            st.session_state.lista_ativos.append(novo_ativo)
+        
+        st.markdown("---")
+        
+        cols = st.columns(len(st.session_state.lista_ativos)) if st.session_state.lista_ativos else []
+        for i, ativo in enumerate(st.session_state.lista_ativos):
+            with cols[i]:
+                st.markdown(f"**{ativo.get('Nome')}**")
+                ativo['Nome'] = st.text_input("Nome", value=ativo.get('Nome', ''), key=f"nome_{i}", label_visibility="collapsed")
+                
+                # --- LÓGICA DE EXIBIÇÃO CORRIGIDA ---
+                if ativo.get('tipo') == "Imobiliário - Renda":
+                    st.write("Parâmetros do Imóvel:")
+                    ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
+                    ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo['Mês Compra'], key=f"mes_compra_{i}")
+                    ativo['Receita Aluguel'] = st.number_input("Aluguel Mensal (R$)", value=ativo['Receita Aluguel'], key=f"aluguel_{i}")
+                    ativo['Vacancia'] = st.number_input("Vacância (%)", value=ativo['Vacancia'], key=f"vacancia_{i}")
+                    ativo['Indice Reajuste'] = st.selectbox("Índice de Reajuste Anual", options=['IPCA', 'IGP-M'], key=f"indice_{i}")
+                    st.write("Custos e Saída:")
+                    ativo['Custos Mensais'] = st.number_input("Custos Fixos Mensais (R$)", value=ativo.get('Custos Mensais', 2000.0), key=f"custos_fixos_{i}")
+                    ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
+                else: # Trata como "Genérico" se o tipo não for imobiliário ou não existir
+                    st.write("Parâmetros do Ativo Genérico:")
+                    ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo.get('Valor', 0.0)), step=100000.0, key=f"valor_{i}")
+                    ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo.get('Mês Investimento', 1), min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
+                    ativo['Benchmark'] = st.selectbox(f"Benchmark", options=['IPCA', 'CDI'], index=0 if ativo.get('Benchmark', 'IPCA') == 'IPCA' else 1, key=f"bench_{i}")
+                    ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo.get('Spread', 0.0), step=0.5, key=f"spread_{i}")
+
     with tab_despesas:
+        # (Código da aba Despesas - sem alterações)
         st.header("Despesas Recorrentes do Fundo")
         if 'lista_despesas' not in st.session_state: st.session_state.lista_despesas = [{'Nome': 'Taxa de Adm', 'Tipo': '% do PL', 'Valor': 0.2}]
-        if st.button("Adicionar Despesa"):
-            st.session_state.lista_despesas.append({'Nome': f"Despesa {len(st.session_state.lista_despesas) + 1}",'Tipo': 'Fixo Mensal','Valor': 10000.0})
-        
+        if st.button("Adicionar Despesa"): st.session_state.lista_despesas.append({'Nome': f"Despesa {len(st.session_state.lista_despesas) + 1}",'Tipo': 'Fixo Mensal','Valor': 10000.0})
         cols = st.columns(len(st.session_state.lista_despesas)) if st.session_state.lista_despesas else []
         for i, despesa in enumerate(st.session_state.lista_despesas):
             with cols[i]:
                 st.markdown(f"**{despesa.get('Nome', f'Despesa {i+1}')}**")
                 despesa['Nome'] = st.text_input("Nome", value=despesa['Nome'], key=f"desp_nome_{i}", label_visibility="collapsed")
                 despesa['Tipo'] = st.selectbox("Tipo de Cálculo", options=['% do PL', 'Fixo Mensal'], key=f"desp_tipo_{i}")
-                if despesa['Tipo'] == '% do PL':
-                    despesa['Valor'] = st.number_input("Valor (% a.a.)", value=despesa.get('Valor', 0.2), step=0.05, key=f"desp_valor_pct_{i}")
-                else:
-                    despesa['Valor'] = st.number_input("Valor (R$)", value=despesa.get('Valor', 10000.0), step=1000.0, key=f"desp_valor_brl_{i}")
+                if despesa['Tipo'] == '% do PL': despesa['Valor'] = st.number_input("Valor (% a.a.)", value=despesa.get('Valor', 0.2), step=0.05, key=f"desp_valor_pct_{i}")
+                else: despesa['Valor'] = st.number_input("Valor (R$)", value=despesa.get('Valor', 10000.0), step=1000.0, key=f"desp_valor_brl_{i}")
     
     with tab_distribuicao:
+        # (Código da aba Distribuição - sem alterações)
         col1, col2 = st.columns(2)
         with col1:
             st.header("Distribuição de Dividendos")
@@ -161,50 +144,96 @@ if not st.session_state.simulacao_rodada:
     with tab_fluxo:
         st.info("⬆️ Configure os parâmetros no painel acima e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
-    # --- 2. MOTOR DE CÁLCULO (sem alterações) ---
-    # (O código do motor de cálculo permanece o mesmo)
+    # --- 2. MOTOR DE CÁLCULO (LÓGICA DE ATIVOS ATUALIZADA) ---
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
+    taxa_igpm_mensal = taxa_ipca_mensal # Simulação, idealmente teria um input próprio
+    
     meses_total = duracao_anos * 12
     datas_projecao = pd.to_datetime([data_inicio + relativedelta(months=i) for i in range(meses_total + 1)])
+    
+    # Trackers individuais para cada ativo
     valor_individual_ativos = [0.0] * len(st.session_state.lista_ativos)
+    aluguel_atual_imoveis = [0.0] * len(st.session_state.lista_ativos)
+
+    # (demais variáveis de controle - sem alterações)
     high_water_mark = aporte_inicial
     pl_inicio_periodo_perf = aporte_inicial
     lucro_caixa_acumulado = 0.0
     lista_fluxos = []
+    
     fluxo_mes_0 = {'Mês': 0, 'PL Início': 0, '(+) Aportes': aporte_inicial, '(-) Amortizações': 0, '(-) Dividendos': 0, 'Ativos_Volume': 0, 'Ativos_Rend_R$': 0, 'Caixa_Volume': aporte_inicial, 'Caixa_Rend_R$': 0, 'Total Despesas': 0, 'Rend. Pré-Desp_R$': 0, 'Rend. Pós-Desp_R$': 0, 'PL Final': aporte_inicial, '(-) Taxa de Performance': 0.0}
     for despesa in st.session_state.lista_despesas: fluxo_mes_0[f"(-) {despesa['Nome']}"] = 0
     lista_fluxos.append(fluxo_mes_0)
+
     for mes in range(1, meses_total + 1):
         fluxo_anterior = lista_fluxos[-1]
+        
         aporte_mes = sum(aporte['Valor'] for aporte in st.session_state.lista_aportes if aporte['Mês'] == mes)
         amortizacao_mes = sum(amort['Valor'] for amort in st.session_state.lista_amortizacoes if amort['Mês'] == mes)
+        
         pl_inicio_mes = fluxo_anterior['PL Final']; caixa_inicio_mes = fluxo_anterior['Caixa_Volume']
         caixa_pos_aportes = caixa_inicio_mes + aporte_mes; pl_pos_aportes = pl_inicio_mes + aporte_mes
+
         rend_ativos_mes = 0
+        novos_investimentos_mes = 0
+
         for i, ativo in enumerate(st.session_state.lista_ativos):
-            if valor_individual_ativos[i] > 0:
-                spread_mensal = (1 + ativo['Spread'] / 100)**(1/12) - 1
-                taxa_ativo = (1 + (taxa_cdi_mensal if ativo['Benchmark'] == 'CDI' else taxa_ipca_mensal)) * (1 + spread_mensal) - 1
-                rendimento_i = valor_individual_ativos[i] * taxa_ativo
-                rend_ativos_mes += rendimento_i
-                valor_individual_ativos[i] += rendimento_i
-        novos_investimentos_mes = sum(ativo['Valor'] for i, ativo in enumerate(st.session_state.lista_ativos) if ativo['Mês Investimento'] == mes)
-        for i, ativo in enumerate(st.session_state.lista_ativos):
-            if ativo['Mês Investimento'] == mes: valor_individual_ativos[i] += ativo['Valor']
+            # Lógica para Ativo Imobiliário
+            if ativo.get('tipo') == "Imobiliário - Renda":
+                if mes >= ativo['Mês Compra']:
+                    # Reajuste anual do aluguel
+                    if (mes - ativo['Mês Compra']) % 12 == 0 and mes > ativo['Mês Compra']:
+                        indice_reajuste = taxa_ipca_mensal if ativo['Indice Reajuste'] == 'IPCA' else taxa_igpm_mensal
+                        aluguel_atual_imoveis[i] *= (1 + indice_reajuste * 12) # Reajuste anual
+                    
+                    # Receita do mês
+                    receita_bruta_imovel = aluguel_atual_imoveis[i]
+                    receita_liquida_imovel = receita_bruta_imovel * (1 - ativo['Vacancia'] / 100.0)
+                    custos_imovel = ativo['Custos Mensais'] + (receita_bruta_imovel * (ativo.get('Outros Custos % Receita', 0) / 100.0))
+                    rend_ativos_mes += receita_liquida_imovel - custos_imovel
+
+                # Venda do imóvel no último mês
+                if mes == meses_total:
+                    noi_anual = (aluguel_atual_imoveis[i] * (1 - ativo['Vacancia'] / 100.0) - ativo['Custos Mensais']) * 12
+                    valor_venda = noi_anual / (ativo['Cap Rate Saida'] / 100.0)
+                    ganho_capital = valor_venda - valor_individual_ativos[i]
+                    rend_ativos_mes += valor_venda # Adiciona o valor de venda ao caixa
+                    valor_individual_ativos[i] = 0 # Zera o valor do ativo após a venda
+                
+            # Lógica para Ativo Genérico
+            else:
+                if valor_individual_ativos[i] > 0:
+                    spread_mensal = (1 + ativo.get('Spread', 0) / 100)**(1/12) - 1
+                    taxa_ativo = (1 + (taxa_cdi_mensal if ativo.get('Benchmark') == 'CDI' else taxa_ipca_mensal)) * (1 + spread_mensal) - 1
+                    rendimento_i = valor_individual_ativos[i] * taxa_ativo
+                    rend_ativos_mes += rendimento_i
+                    valor_individual_ativos[i] += rendimento_i
+
+            # Lógica de Compra/Investimento (para todos os tipos)
+            mes_investimento = ativo.get('Mês Compra') if ativo.get('tipo') == "Imobiliário - Renda" else ativo.get('Mês Investimento')
+            valor_investimento = ativo.get('Valor Compra') if ativo.get('tipo') == "Imobiliário - Renda" else ativo.get('Valor')
+            
+            if mes == mes_investimento:
+                novos_investimentos_mes += valor_investimento
+                valor_individual_ativos[i] += valor_investimento
+                if ativo.get('tipo') == "Imobiliário - Renda":
+                    aluguel_atual_imoveis[i] = ativo['Receita Aluguel']
+
         caixa_pos_investimento = caixa_pos_aportes - novos_investimentos_mes
         rend_caixa_mes = max(0, caixa_pos_investimento) * taxa_cdi_mensal
+        
+        # (Restante do motor de cálculo: despesas, performance, dividendos, etc. - sem alterações)
         total_despesas_regulares = 0; despesas_mes_dict = {}
         for despesa in st.session_state.lista_despesas:
             valor_despesa = pl_pos_aportes * (despesa['Valor'] / 100 / 12) if despesa['Tipo'] == '% do PL' else despesa['Valor']
             despesas_mes_dict[f"(-) {despesa['Nome']}"] = valor_despesa
             total_despesas_regulares += valor_despesa
-        pl_pre_performance = pl_pos_aportes + (rend_ativos_mes + rend_caixa_mes) - total_despesas_regulares
+        pl_pre_performance = pl_pos_aportes + rend_ativos_mes + rend_caixa_mes - total_despesas_regulares
         taxa_performance_mes = 0
-        if calc_performance and mes > perf_carencia and (mes % 12 == 0 or mes == meses_total):
-            pass
+        if calc_performance and mes > perf_carencia and (mes % 12 == 0 or mes == meses_total): pass
         total_despesas_mes = total_despesas_regulares + taxa_performance_mes
-        rend_pos_desp = (rend_ativos_mes + rend_caixa_mes) - total_despesas_mes
+        rend_pos_desp = rend_ativos_mes + rend_caixa_mes - total_despesas_mes
         lucro_caixa_acumulado += rend_pos_desp
         dividendo_mes = 0
         if calc_dividendos:
@@ -221,10 +250,10 @@ else:
         fluxo_atual.update(despesas_mes_dict)
         lista_fluxos.append(fluxo_atual)
     
-    # --- 3. PÓS-PROCESSAMENTO E EXIBIÇÃO ---
-    # (O código de exibição permanece o mesmo)
+    # (Restante do código de exibição - sem alterações)
     df = pd.DataFrame(lista_fluxos)
     if not df.empty:
+        # (código de pós-processamento)
         df.index = datas_projecao; df['Ano'] = df.index.year
         df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
         df['Ativos_% Alocado'] = df['Ativos_Volume'] / df['PL Final'].where(df['PL Final'] != 0)
@@ -236,6 +265,7 @@ else:
         df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
         with tab_fluxo:
             st.header("Fluxo de Caixa Detalhado")
+            # (código de formatação e exibição do DataFrame)
             col_map = {'Ano': ('Período', 'Ano'), 'Mês': ('Período', 'Mês'), 'PL Início': ('Geral', 'PL Início'), '(+) Aportes': ('Geral', '(+) Aportes'), '(-) Amortizações': ('Geral', '(-) Amortizações'), '(-) Dividendos': ('Geral', '(-) Dividendos'), 'PL Final': ('Geral', 'PL Final'), 'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend R$'), 'Ativos_Rend_%': ('Ativos', 'Rend %'), 'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend R$'), 'Caixa_Rend_%': ('Caixa', 'Rend %'), 'Total Despesas': ('Despesas', 'Total'), '(-) Taxa de Performance': ('Despesas', 'Performance'), 'Rend. Pré-Desp_R$': ('Resultado', 'Rend Pré-Desp R$'), 'Rend. Pré-Desp_%': ('Resultado', 'Rend Pré-Desp %'), 'Rend. Pós-Desp_R$': ('Resultado', 'Rend Pós-Desp R$'), 'Rend. Pós-Desp_%': ('Resultado', 'Rend Pós-Desp %')}
             for desp in st.session_state.lista_despesas: col_map[f"(-) {desp['Nome']}"] = ('Despesas', f"(-) {desp['Nome']}")
             df_display = df.rename(columns=col_map)
