@@ -66,20 +66,53 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                 amort['Valor'] = st.number_input("Valor (R$)", value=float(amort['Valor']), step=100000.0, key=f"amort_valor_{i}")
 
     with tab_ativos:
-        st.header("Modelagem de Ativos do Fundo")
-        if 'lista_ativos' not in st.session_state: st.session_state.lista_ativos = []
-        if st.button("Adicionar Ativo Genérico"):
-            st.session_state.lista_ativos.append({'Nome': f"Ativo {len(st.session_state.lista_ativos) + 1}",'Valor': 2000000.0,'Mês Investimento': 1,'Benchmark': 'IPCA','Spread': 7.0})
-        
-        cols = st.columns(len(st.session_state.lista_ativos)) if st.session_state.lista_ativos else []
-        for i, ativo in enumerate(st.session_state.lista_ativos):
-            with cols[i]:
-                st.markdown(f"**{ativo.get('Nome', f'Ativo {i+1}')}**")
-                ativo['Nome'] = st.text_input(f"Nome", value=ativo['Nome'], key=f"nome_{i}", label_visibility="collapsed")
-                ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo['Valor']), step=100000.0, key=f"valor_{i}")
-                ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo['Mês Investimento'], min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
-                ativo['Benchmark'] = st.selectbox(f"Benchmark", options=['IPCA', 'CDI'], index=0 if ativo['Benchmark'] == 'IPCA' else 1, key=f"bench_{i}")
-                ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo['Spread'], step=0.5, key=f"spread_{i}")
+            st.header("Modelagem de Ativos do Fundo")
+            if 'lista_ativos' not in st.session_state:
+                st.session_state.lista_ativos = []
+    
+            # Seletor para o tipo de ativo a ser adicionado
+            tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", 
+                                           ["Imobiliário - Renda", "CRI / CCI (em breve)", "Genérico"])
+    
+            if st.button(f"Adicionar {tipo_ativo_novo}"):
+                novo_ativo = {'tipo': tipo_ativo_novo}
+                if tipo_ativo_novo == "Imobiliário - Renda":
+                    novo_ativo.update({
+                        'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1,
+                        'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA',
+                        'IPTU Mensal': 1500.0, 'Seguro Mensal': 500.0, 'Outros Custos % Receita': 2.0,
+                        'Cap Rate Saida': 7.0
+                    })
+                else: # Genérico
+                    novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
+                st.session_state.lista_ativos.append(novo_ativo)
+            
+            st.markdown("---")
+            
+            # Exibe os inputs de acordo com o tipo de cada ativo na lista
+            cols = st.columns(len(st.session_state.lista_ativos)) if st.session_state.lista_ativos else []
+            for i, ativo in enumerate(st.session_state.lista_ativos):
+                with cols[i]:
+                    st.markdown(f"**{ativo.get('Nome')}**")
+                    ativo['Nome'] = st.text_input("Nome", value=ativo['Nome'], key=f"nome_{i}", label_visibility="collapsed")
+                    
+                    if ativo['tipo'] == "Imobiliário - Renda":
+                        st.write("Parâmetros do Imóvel:")
+                        ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
+                        ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo['Mês Compra'], key=f"mes_compra_{i}")
+                        ativo['Receita Aluguel'] = st.number_input("Aluguel Mensal (R$)", value=ativo['Receita Aluguel'], key=f"aluguel_{i}")
+                        ativo['Vacancia'] = st.number_input("Vacância (%)", value=ativo['Vacancia'], key=f"vacancia_{i}")
+                        ativo['Indice Reajuste'] = st.selectbox("Índice de Reajuste Anual", options=['IPCA', 'IGP-M'], key=f"indice_{i}")
+                        st.write("Custos e Saída:")
+                        ativo['Outros Custos % Receita'] = st.number_input("Outros Custos (% da Receita)", value=ativo['Outros Custos % Receita'], key=f"custos_pct_{i}")
+                        ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
+                    
+                    elif ativo['tipo'] == "Genérico":
+                        ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo['Valor']), step=100000.0, key=f"valor_{i}")
+                        ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo['Mês Investimento'], min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
+                        ativo['Benchmark'] = st.selectbox(f"Benchmark", options=['IPCA', 'CDI'], index=0 if ativo['Benchmark'] == 'IPCA' else 1, key=f"bench_{i}")
+                        ativo['Spread'] = st.number_input(f"Spread (% a.a.)", value=ativo['Spread'], step=0.5, key=f"spread_{i}")
+
     
     with tab_despesas:
         st.header("Despesas Recorrentes do Fundo")
