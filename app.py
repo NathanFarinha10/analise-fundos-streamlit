@@ -376,10 +376,10 @@ else:
                     index_dre.extend(["(+) Receita de Ativos", "(+) Receita de Caixa", "(=) Receita Bruta", "--- Despesas ---"])
             for nome_despesa in despesas_anual.keys(): index_dre.append(nome_despesa)
                 index_dre.extend(["(-) Taxa de Performance", "(=) Total Despesas", "(=) Resultado Operacional (Lucro Caixa)", "(-) Dividendos Distribuídos", "(=) Resultado Líquido Retido"])
-                coluna_ano = [receita_ativos, receita_caixa, receita_bruta, None]
-                coluna_ano.extend(list(despesas_anual.values()))
-                coluna_ano.extend([taxa_perf, total_despesas, resultado_operacional, dividendos, resultado_liquido])
-                dre_data.append(coluna_ano)
+                    coluna_ano = [receita_ativos, receita_caixa, receita_bruta, None]
+                    coluna_ano.extend(list(despesas_anual.values()))
+                    coluna_ano.extend([taxa_perf, total_despesas, resultado_operacional, dividendos, resultado_liquido])
+                    dre_data.append(coluna_ano)
             if dre_data:
                 df_dre_vertical = pd.DataFrame(dre_data, columns=index_dre)
                 df_dre_vertical.index = [ano for ano in df_anual.index if ano != df['Ano'].min()]
