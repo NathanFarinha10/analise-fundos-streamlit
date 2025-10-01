@@ -10,7 +10,7 @@ st.set_page_config(layout="wide")
 
 st.title("Análise de Viabilidade de Fundos de Investimento")
 
-# (Lógica de Gerenciamento de Estado - sem alterações)
+# --- Lógica de Gerenciamento de Estado ---
 if 'simulacao_rodada' not in st.session_state:
     st.session_state.simulacao_rodada = False
 def rodar_simulacao():
@@ -18,7 +18,6 @@ def rodar_simulacao():
 
 # --- PAINEL DE CONFIGURAÇÕES ---
 with st.expander("Painel de Configurações da Simulação", expanded=True):
-    # (Todas as abas de configuração permanecem as mesmas)
     tab_geral, tab_capital, tab_ativos, tab_despesas, tab_distribuicao = st.tabs([
         "Geral & Curvas", "Movimentações de Capital", "Modelagem de Ativos", 
         "Despesas", "Performance & Dividendos"
@@ -63,7 +62,7 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
             if tipo_ativo_novo == "Imobiliário - Renda":
                 novo_ativo.update({'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1, 'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA', 'Custos Mensais': 2000.0, 'Cap Rate Saida': 7.0})
             elif tipo_ativo_novo == "CRI / CCI":
-                novo_ativo.update({'Nome': f"CRI {len(st.session_state.lista_ativos) + 1}", 'Principal': 3000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Tipo Taxa': 'Spread', 'Taxa': 6.0, 'Prazo': 120, 'Amortizacao': 'Price', 'Carencia': 0, 'Tranche': 'Sênior'})
+                novo_ativo.update({'Nome': f"CRI {len(st.session_state.lista_ativos) + 1}", 'Principal': 3000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Tipo Taxa': 'Spread', 'Taxa': 6.0, 'Prazo': 120, 'Amortizacao': 'Price', 'Carencia': 0, 'Tranche': 'Sênior', 'Perda': 0.0})
             else: novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
             st.session_state.lista_ativos.append(novo_ativo)
         st.markdown("---")
@@ -74,25 +73,26 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                 tipo_ativo_atual = ativo.get('tipo')
                 if tipo_ativo_atual == "Imobiliário - Renda":
                     st.write("Parâmetros do Imóvel:")
-                    ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
-                    ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo['Mês Compra'], key=f"mes_compra_{i}")
-                    ativo['Receita Aluguel'] = st.number_input("Aluguel Mensal (R$)", value=ativo['Receita Aluguel'], key=f"aluguel_{i}")
-                    ativo['Vacancia'] = st.number_input("Vacância (%)", value=ativo['Vacancia'], key=f"vacancia_{i}")
+                    ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo.get('Valor Compra', 0.0), key=f"val_compra_{i}")
+                    ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo.get('Mês Compra', 1), key=f"mes_compra_{i}")
+                    ativo['Receita Aluguel'] = st.number_input("Aluguel Mensal (R$)", value=ativo.get('Receita Aluguel', 0.0), key=f"aluguel_{i}")
+                    ativo['Vacancia'] = st.number_input("Vacância (%)", value=ativo.get('Vacancia', 0.0), key=f"vacancia_{i}")
                     ativo['Indice Reajuste'] = st.selectbox("Índice de Reajuste Anual", options=['IPCA', 'IGP-M'], key=f"indice_{i}")
                     st.write("Custos e Saída:")
-                    ativo['Custos Mensais'] = st.number_input("Custos Fixos Mensais (R$)", value=ativo.get('Custos Mensais', 2000.0), key=f"custos_fixos_{i}")
-                    ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
+                    ativo['Custos Mensais'] = st.number_input("Custos Fixos Mensais (R$)", value=ativo.get('Custos Mensais', 0.0), key=f"custos_fixos_{i}")
+                    ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo.get('Cap Rate Saida', 0.0), key=f"cap_rate_{i}")
                 elif tipo_ativo_atual == "CRI / CCI":
                     st.write("Parâmetros do Título:")
-                    ativo['Principal'] = st.number_input("Principal (R$)", value=ativo['Principal'], key=f"principal_{i}")
-                    ativo['Mês Investimento'] = st.number_input("Mês do Invest.", value=ativo['Mês Investimento'], key=f"mes_invest_cri_{i}")
-                    ativo['Prazo'] = st.number_input("Prazo (meses)", value=ativo['Prazo'], key=f"prazo_{i}")
+                    ativo['Principal'] = st.number_input("Principal (R$)", value=ativo.get('Principal', 0.0), key=f"principal_{i}")
+                    ativo['Mês Investimento'] = st.number_input("Mês do Invest.", value=ativo.get('Mês Investimento', 1), key=f"mes_invest_cri_{i}")
+                    ativo['Prazo'] = st.number_input("Prazo (meses)", value=ativo.get('Prazo', 1), key=f"prazo_{i}")
                     ativo['Benchmark'] = st.selectbox("Benchmark", options=['IPCA', 'CDI', 'Pré-fixado'], key=f"bench_cri_{i}")
                     ativo['Tipo Taxa'] = st.selectbox("Tipo de Taxa", options=['Spread', '% do Benchmark'], key=f"tipo_taxa_cri_{i}")
-                    ativo['Taxa'] = st.number_input("Taxa", value=ativo['Taxa'], key=f"taxa_cri_{i}")
+                    ativo['Taxa'] = st.number_input("Taxa", value=ativo.get('Taxa', 0.0), key=f"taxa_cri_{i}")
                     ativo['Amortizacao'] = st.selectbox("Amortização", options=['SAC', 'Price', 'Bullet'], key=f"amort_cri_{i}")
-                    ativo['Carencia'] = st.number_input("Carência de Amort. (meses)", value=ativo['Carencia'], key=f"carencia_cri_{i}")
-                    ativo['Tranche'] = st.selectbox("Série (Tranche)", options=['Sênior', 'Subordinada'], help="Lógica de subordinação será implementada no futuro.", key=f"tranche_cri_{i}")
+                    ativo['Carencia'] = st.number_input("Carência de Amort. (meses)", value=ativo.get('Carencia', 0), key=f"carencia_cri_{i}")
+                    ativo['Tranche'] = st.selectbox("Série (Tranche)", options=['Sênior', 'Subordinada'], key=f"tranche_cri_{i}")
+                    ativo['Perda'] = st.number_input("Perda Esperada (% a.a.)", value=ativo.get('Perda', 0.0), key=f"perda_cri_{i}")
                 else: 
                     st.write("Parâmetros do Ativo Genérico:")
                     ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo.get('Valor', 0.0)), step=100000.0, key=f"valor_{i}")
@@ -139,7 +139,7 @@ if not st.session_state.simulacao_rodada:
     with tab_fluxo:
         st.info("⬆️ Configure os parâmetros no painel acima e clique em 'Gerar Projeção' para iniciar a análise.")
 else:
-    # --- 2. MOTOR DE CÁLCULO (LÓGICA PRICE IMPLEMENTADA) ---
+    # --- 2. MOTOR DE CÁLCULO (LÓGICA DE SUBORDINAÇÃO IMPLEMENTADA) ---
     taxa_cdi_mensal = (1 + projecao_cdi / 100)**(1/12) - 1
     taxa_ipca_mensal = (1 + projecao_ipca / 100)**(1/12) - 1
     taxa_igpm_mensal = taxa_ipca_mensal
@@ -149,7 +149,6 @@ else:
     valor_individual_ativos = [0.0] * len(st.session_state.lista_ativos)
     aluguel_atual_imoveis = [0.0] * len(st.session_state.lista_ativos)
     saldo_devedor_cris = [0.0] * len(st.session_state.lista_ativos)
-    # --- NOVO: Tracker para a parcela Price ---
     pmt_cris = [0.0] * len(st.session_state.lista_ativos)
 
     high_water_mark = aporte_inicial
@@ -157,49 +156,50 @@ else:
     lucro_caixa_acumulado = 0.0
     lista_fluxos = []
     
-    fluxo_mes_0 = {'Mês': 0, 'PL Início': 0, '(+) Aportes': aporte_inicial, '(-) Amortizações': 0, '(-) Dividendos': 0, 'Ativos_Volume': 0, 'Ativos_Rend_R$': 0, 'Caixa_Volume': aporte_inicial, 'Caixa_Rend_R$': 0, 'Total Despesas': 0, 'Rend. Pré-Desp_R$': 0, 'Rend. Pós-Desp_R$': 0, 'PL Final': aporte_inicial, '(-) Taxa de Performance': 0.0}
+    fluxo_mes_0 = {'Mês': 0, 'PL Início': 0, '(+) Aportes': aporte_inicial, '(-) Amortizações': 0, '(-) Dividendos': 0, 'Ativos_Volume': 0, 'Ativos_Rend_R$': 0, 'Caixa_Volume': aporte_inicial, 'Caixa_Rend_R$': 0, 'Total Despesas': 0, 'Rend. Pré-Desp_R$': 0, 'Rend. Pós-Desp_R$': 0, 'PL Final': aporte_inicial, '(-) Taxa de Performance': 0.0, '(-) Perdas em Ativos': 0.0}
     for despesa in st.session_state.lista_despesas: fluxo_mes_0[f"(-) {despesa['Nome']}"] = 0
     lista_fluxos.append(fluxo_mes_0)
-
+    
     for mes in range(1, meses_total + 1):
         fluxo_anterior = lista_fluxos[-1]
         aporte_mes = sum(a['Valor'] for a in st.session_state.lista_aportes if a['Mês'] == mes)
         amortizacao_mes = sum(a['Valor'] for a in st.session_state.lista_amortizacoes if a['Mês'] == mes)
         pl_inicio_mes = fluxo_anterior['PL Final']; caixa_inicio_mes = fluxo_anterior['Caixa_Volume']
         caixa_pos_aportes = caixa_inicio_mes + aporte_mes; pl_pos_aportes = pl_inicio_mes + aporte_mes
-        rend_ativos_mes = 0; novos_investimentos_mes = 0
+        rend_ativos_mes = 0; novos_investimentos_mes = 0; perdas_mes = 0
 
         for i, ativo in enumerate(st.session_state.lista_ativos):
             tipo_ativo = ativo.get('tipo')
-            
             if tipo_ativo == "CRI / CCI":
                 if mes >= ativo['Mês Investimento'] and saldo_devedor_cris[i] > 0:
-                    if ativo['Benchmark'] == 'Pré-fixado': taxa_remuneracao_anual = ativo['Taxa'] / 100.0
-                    else: taxa_bench_anual = projecao_ipca / 100.0 if ativo['Benchmark'] == 'IPCA' else projecao_cdi / 100.0
-                    if ativo['Tipo Taxa'] == 'Spread': taxa_remuneracao_anual = (1 + taxa_bench_anual) * (1 + ativo['Taxa'] / 100.0) - 1
-                    else: taxa_remuneracao_anual = taxa_bench_anual * (ativo['Taxa'] / 100.0)
-                    taxa_mensal = (1 + taxa_remuneracao_anual)**(1/12) - 1
+                    perda_mensal = saldo_devedor_cris[i] * ((1 + ativo.get('Perda', 0.0) / 100.0)**(1/12) - 1)
+                    perdas_mes += perda_mensal
+                    
+                    if ativo['Benchmark'] == 'Pré-fixado': taxa_rem_anual = ativo['Taxa'] / 100.0
+                    else: taxa_bench_anual = projecao_ipca/100 if ativo['Benchmark'] == 'IPCA' else projecao_cdi/100
+                    if ativo['Tipo Taxa'] == 'Spread': taxa_rem_anual = (1+taxa_bench_anual)*(1+ativo['Taxa']/100)-1
+                    else: taxa_rem_anual = taxa_bench_anual * (ativo['Taxa']/100)
+                    taxa_mensal = (1 + taxa_rem_anual)**(1/12) - 1
                     
                     juros_mes = saldo_devedor_cris[i] * taxa_mensal
-                    amortizacao_cri_mes = 0
-                    
+                    amort_mes = 0
                     if mes > ativo['Mês Investimento'] + ativo['Carencia']:
-                        if ativo['Amortizacao'] == 'SAC':
-                            amortizacao_cri_mes = ativo['Principal'] / (ativo['Prazo'] - ativo['Carencia'])
-                        # --- LÓGICA PRICE IMPLEMENTADA ---
-                        elif ativo['Amortizacao'] == 'Price':
-                            pmt = pmt_cris[i]
-                            amortizacao_cri_mes = pmt - juros_mes
-                        elif ativo['Amortizacao'] == 'Bullet' and (mes - ativo['Mês Investimento']) == ativo['Prazo'] -1:
-                            amortizacao_cri_mes = saldo_devedor_cris[i]
+                        if ativo['Amortizacao'] == 'SAC': amort_mes = ativo['Principal']/(ativo['Prazo']-ativo['Carencia'])
+                        elif ativo['Amortizacao'] == 'Price': amort_mes = pmt_cris[i] - juros_mes
+                        elif ativo['Amortizacao'] == 'Bullet' and (mes - ativo['Mês Investimento']) == ativo['Prazo'] -1: amort_mes = saldo_devedor_cris[i]
                     
-                    amortizacao_cri_mes = min(amortizacao_cri_mes, saldo_devedor_cris[i])
-                    saldo_devedor_cris[i] -= amortizacao_cri_mes
-                    rend_ativos_mes += juros_mes + amortizacao_cri_mes
+                    amort_mes = min(amort_mes, saldo_devedor_cris[i])
+                    
+                    # Aplica a cascata de perdas
+                    perda_realizada = min(perda_mensal, saldo_devedor_cris[i] - amort_mes) # Não pode perder mais do que o saldo
+                    if ativo['Tranche'] == 'Subordinada':
+                        saldo_devedor_cris[i] -= perda_realizada
+                    
+                    saldo_devedor_cris[i] -= amort_mes
+                    rend_ativos_mes += juros_mes + amort_mes
                     valor_individual_ativos[i] = saldo_devedor_cris[i]
 
             elif tipo_ativo == "Imobiliário - Renda":
-                # (lógica imobiliária - sem alterações)
                 if mes >= ativo['Mês Compra']:
                     if (mes - ativo['Mês Compra']) % 12 == 0 and mes > ativo['Mês Compra']:
                         indice_reajuste = taxa_ipca_mensal if ativo['Indice Reajuste'] == 'IPCA' else taxa_igpm_mensal
@@ -211,11 +211,10 @@ else:
                     valor_individual_ativos[i] += (receita_liquida_imovel - custos_imovel)
                 if mes == meses_total:
                     noi_anual = (aluguel_atual_imoveis[i] * (1 - ativo['Vacancia'] / 100.0) - ativo['Custos Mensais']) * 12
-                    valor_venda = noi_anual / (ativo['Cap Rate Saida'] / 100.0)
+                    valor_venda = noi_anual / (ativo['Cap Rate Saida'] / 100.0) if ativo['Cap Rate Saida'] > 0 else 0
                     rend_ativos_mes += valor_venda
                     valor_individual_ativos[i] = 0
-            
-            else: # Genérico
+            else:
                 if valor_individual_ativos[i] > 0:
                     spread_mensal = (1 + ativo.get('Spread', 0) / 100)**(1/12) - 1
                     taxa_ativo = (1 + (taxa_cdi_mensal if ativo.get('Benchmark') == 'CDI' else taxa_ipca_mensal)) * (1 + spread_mensal) - 1
@@ -223,16 +222,13 @@ else:
                     rend_ativos_mes += rendimento_i
                     valor_individual_ativos[i] += rendimento_i
 
-            if tipo_ativo == "Imobiliário - Renda": mes_invest, val_invest = ativo.get('Mês Compra'), ativo.get('Valor Compra')
-            elif tipo_ativo == "CRI / CCI": mes_invest, val_invest = ativo.get('Mês Investimento'), ativo.get('Principal')
-            else: mes_invest, val_invest = ativo.get('Mês Investimento'), ativo.get('Valor')
-            
-            if mes == mes_invest:
-                novos_investimentos_mes += val_invest
+            if tipo_ativo == "Imobiliário - Renda": mes_inv, val_inv = ativo.get('Mês Compra'), ativo.get('Valor Compra')
+            elif tipo_ativo == "CRI / CCI": mes_inv, val_inv = ativo.get('Mês Investimento'), ativo.get('Principal')
+            else: mes_inv, val_inv = ativo.get('Mês Investimento'), ativo.get('Valor')
+            if mes == mes_inv:
+                novos_investimentos_mes += val_inv
                 if tipo_ativo == "CRI / CCI":
-                    saldo_devedor_cris[i] = val_invest
-                    valor_individual_ativos[i] = val_invest
-                    # --- NOVO: Cálculo da Parcela Price (PMT) no momento do investimento ---
+                    saldo_devedor_cris[i] = val_inv; valor_individual_ativos[i] = val_inv
                     if ativo['Amortizacao'] == 'Price':
                         if ativo['Benchmark'] == 'Pré-fixado': taxa_anual = ativo['Taxa'] / 100.0
                         else: taxa_bench = projecao_ipca/100 if ativo['Benchmark'] == 'IPCA' else projecao_cdi/100
@@ -240,30 +236,24 @@ else:
                         else: taxa_anual = taxa_bench * (ativo['Taxa']/100)
                         taxa_m = (1+taxa_anual)**(1/12)-1
                         nper = ativo['Prazo'] - ativo['Carencia']
-                        if taxa_m > 0 and nper > 0:
-                           pmt_cris[i] = npf.pmt(taxa_m, nper, -val_invest)
-
+                        if taxa_m > 0 and nper > 0: pmt_cris[i] = npf.pmt(taxa_m, nper, -val_inv)
                 elif tipo_ativo == "Imobiliário - Renda":
-                    valor_individual_ativos[i] = val_invest
-                    aluguel_atual_imoveis[i] = ativo['Receita Aluguel']
-                else:
-                    valor_individual_ativos[i] += val_invest
-
+                    valor_individual_ativos[i] = val_inv; aluguel_atual_imoveis[i] = ativo['Receita Aluguel']
+                else: valor_individual_ativos[i] += val_inv
+        
         caixa_pos_investimento = caixa_pos_aportes - novos_investimentos_mes
         rend_caixa_mes = max(0, caixa_pos_investimento) * taxa_cdi_mensal
         
-        # (Restante do motor de cálculo: despesas, performance, dividendos, etc. - sem alterações)
         total_despesas_regulares = 0; despesas_mes_dict = {}
         for despesa in st.session_state.lista_despesas:
             valor_despesa = pl_pos_aportes * (despesa['Valor'] / 100 / 12) if despesa['Tipo'] == '% do PL' else despesa['Valor']
             despesas_mes_dict[f"(-) {despesa['Nome']}"] = valor_despesa
             total_despesas_regulares += valor_despesa
-        pl_pre_performance = pl_pos_aportes + rend_ativos_mes + rend_caixa_mes - total_despesas_regulares
+        pl_pre_performance = pl_pos_aportes + rend_ativos_mes + rend_caixa_mes - total_despesas_regulares - perdas_mes
         taxa_performance_mes = 0
-        if calc_performance and mes > perf_carencia and (mes % 12 == 0 or mes == meses_total): pass
         total_despesas_mes = total_despesas_regulares + taxa_performance_mes
         rend_pos_desp = rend_ativos_mes + rend_caixa_mes - total_despesas_mes
-        lucro_caixa_acumulado += rend_pos_desp
+        lucro_caixa_acumulado += (rend_pos_desp - perdas_mes)
         dividendo_mes = 0
         if calc_dividendos:
             if dist_frequencia == 'Mensal': meses_frequencia = 1
@@ -275,16 +265,13 @@ else:
         caixa_final_mes = caixa_pos_investimento + rend_caixa_mes - total_despesas_mes - amortizacao_mes - dividendo_mes
         vol_ativos_final_mes = sum(valor_individual_ativos)
         pl_final_mes = vol_ativos_final_mes + caixa_final_mes
-        fluxo_atual = {'Mês': mes, 'PL Início': pl_inicio_mes, '(+) Aportes': aporte_mes, '(-) Amortizações': amortizacao_mes, '(-) Dividendos': dividendo_mes, 'Ativos_Volume': vol_ativos_final_mes, 'Ativos_Rend_R$': rend_ativos_mes, 'Caixa_Volume': caixa_final_mes, 'Caixa_Rend_R$': rend_caixa_mes, 'Total Despesas': total_despesas_mes, 'Rend. Pré-Desp_R$': rend_ativos_mes + rend_caixa_mes, 'Rend. Pós-Desp_R$': rend_pos_desp, 'PL Final': pl_final_mes, '(-) Taxa de Performance': taxa_performance_mes}
+        fluxo_atual = {'Mês': mes, 'PL Início': pl_inicio_mes, '(+) Aportes': aporte_mes, '(-) Amortizações': amortizacao_mes, '(-) Dividendos': dividendo_mes, 'Ativos_Volume': vol_ativos_final_mes, 'Ativos_Rend_R$': rend_ativos_mes, 'Caixa_Volume': caixa_final_mes, 'Caixa_Rend_R$': rend_caixa_mes, 'Total Despesas': total_despesas_mes, 'Rend. Pré-Desp_R$': rend_ativos_mes + rend_caixa_mes, 'Rend. Pós-Desp_R$': rend_pos_desp, 'PL Final': pl_final_mes, '(-) Taxa de Performance': taxa_performance_mes, '(-) Perdas em Ativos': perdas_mes}
         fluxo_atual.update(despesas_mes_dict)
         lista_fluxos.append(fluxo_atual)
-    
-    # (Restante do código de exibição - sem alterações)
+
     df = pd.DataFrame(lista_fluxos)
     if not df.empty:
-        # (código de pós-processamento)
-        df.index = datas_projecao; df['Ano'] = df.index.year
-        df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
+        df.index = datas_projecao; df['Ano'] = df.index.year; df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
         df['Ativos_% Alocado'] = df['Ativos_Volume'] / df['PL Final'].where(df['PL Final'] != 0)
         df['Caixa_% Alocado'] = df['Caixa_Volume'] / df['PL Final'].where(df['PL Final'] != 0)
         df['Ativos_Rend_%'] = df['Ativos_Rend_R$'] / df['Ativos_Volume'].shift(1).where(df['Ativos_Volume'].shift(1) != 0)
@@ -294,13 +281,12 @@ else:
         df.fillna(0, inplace=True); df.replace([float('inf'), -float('inf')], 0, inplace=True)
         with tab_fluxo:
             st.header("Fluxo de Caixa Detalhado")
-            # (código de formatação e exibição do DataFrame)
-            col_map = {'Ano': ('Período', 'Ano'), 'Mês': ('Período', 'Mês'), 'PL Início': ('Geral', 'PL Início'), '(+) Aportes': ('Geral', '(+) Aportes'), '(-) Amortizações': ('Geral', '(-) Amortizações'), '(-) Dividendos': ('Geral', '(-) Dividendos'), 'PL Final': ('Geral', 'PL Final'), 'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend R$'), 'Ativos_Rend_%': ('Ativos', 'Rend %'), 'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend R$'), 'Caixa_Rend_%': ('Caixa', 'Rend %'), 'Total Despesas': ('Despesas', 'Total'), '(-) Taxa de Performance': ('Despesas', 'Performance'), 'Rend. Pré-Desp_R$': ('Resultado', 'Rend Pré-Desp R$'), 'Rend. Pré-Desp_%': ('Resultado', 'Rend Pré-Desp %'), 'Rend. Pós-Desp_R$': ('Resultado', 'Rend Pós-Desp R$'), 'Rend. Pós-Desp_%': ('Resultado', 'Rend Pós-Desp %')}
+            col_map = {'Ano': ('Período', 'Ano'), 'Mês': ('Período', 'Mês'), 'PL Início': ('Geral', 'PL Início'), '(+) Aportes': ('Geral', '(+) Aportes'), '(-) Amortizações': ('Geral', '(-) Amortizações'), '(-) Dividendos': ('Geral', '(-) Dividendos'), 'PL Final': ('Geral', 'PL Final'), 'Ativos_% Alocado': ('Ativos', '% Alocado'), 'Ativos_Volume': ('Ativos', 'Volume'), 'Ativos_Rend_R$': ('Ativos', 'Rend R$'), 'Ativos_Rend_%': ('Ativos', 'Rend %'), '(-) Perdas em Ativos': ('Ativos', '(-) Perdas'), 'Caixa_% Alocado': ('Caixa', '% Alocado'), 'Caixa_Volume': ('Caixa', 'Volume'), 'Caixa_Rend_R$': ('Caixa', 'Rend R$'), 'Caixa_Rend_%': ('Caixa', 'Rend %'), 'Total Despesas': ('Despesas', 'Total'), '(-) Taxa de Performance': ('Despesas', 'Performance'), 'Rend. Pré-Desp_R$': ('Resultado', 'Rend Pré-Desp R$'), 'Rend. Pré-Desp_%': ('Resultado', 'Rend Pré-Desp %'), 'Rend. Pós-Desp_R$': ('Resultado', 'Rend Pós-Desp R$'), 'Rend. Pós-Desp_%': ('Resultado', 'Rend Pós-Desp %')}
             for desp in st.session_state.lista_despesas: col_map[f"(-) {desp['Nome']}"] = ('Despesas', f"(-) {desp['Nome']}")
             df_display = df.rename(columns=col_map)
             ordem_final = [col for col in col_map.values() if col in df_display.columns]
             df_display.columns = pd.MultiIndex.from_tuples(df_display.columns); df_display = df_display[ordem_final]
-            st.dataframe(df_display.style.format({('Geral', 'PL Início'): "R$ {:,.2f}", ('Geral', '(+) Aportes'): "R$ {:,.2f}", ('Geral', '(-) Amortizações'): "R$ {:,.2f}", ('Geral', '(-) Dividendos'): "R$ {:,.2f}", ('Geral', 'PL Final'): "R$ {:,.2f}",('Ativos', 'Volume'): "R$ {:,.2f}", ('Ativos', 'Rend R$'): "R$ {:,.2f}", ('Ativos', '% Alocado'): "{:.2%}", ('Ativos', 'Rend %'): "{:.2%}",('Caixa', 'Volume'): "R$ {:,.2f}", ('Caixa', 'Rend R$'): "R$ {:,.2f}", ('Caixa', '% Alocado'): "{:.2%}", ('Caixa', 'Rend %'): "{:.2%}",('Despesas', 'Total'): "R$ {:,.2f}", ('Despesas', 'Performance'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp R$'): "R$ {:,.2f}", ('Resultado', 'Rend Pós-Desp R$'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp %'): "{:.2%}", ('Resultado', 'Rend Pós-Desp %'): "{:.2%}"} | {('Despesas', f"(-) {d['Nome']}"): "R$ {:,.2f}" for d in st.session_state.lista_despesas}, na_rep="-"))
+            st.dataframe(df_display.style.format({('Geral', 'PL Início'): "R$ {:,.2f}", ('Geral', '(+) Aportes'): "R$ {:,.2f}", ('Geral', '(-) Amortizações'): "R$ {:,.2f}", ('Geral', '(-) Dividendos'): "R$ {:,.2f}", ('Geral', 'PL Final'): "R$ {:,.2f}",('Ativos', 'Volume'): "R$ {:,.2f}", ('Ativos', 'Rend R$'): "R$ {:,.2f}", ('Ativos', '% Alocado'): "{:.2%}", ('Ativos', 'Rend %'): "{:.2%}", ('Ativos', '(-) Perdas'): "R$ {:,.2f}", ('Caixa', 'Volume'): "R$ {:,.2f}", ('Caixa', 'Rend R$'): "R$ {:,.2f}", ('Caixa', '% Alocado'): "{:.2%}", ('Caixa', 'Rend %'): "{:.2%}",('Despesas', 'Total'): "R$ {:,.2f}", ('Despesas', 'Performance'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp R$'): "R$ {:,.2f}", ('Resultado', 'Rend Pós-Desp R$'): "R$ {:,.2f}",('Resultado', 'Rend Pré-Desp %'): "{:.2%}", ('Resultado', 'Rend Pós-Desp %'): "{:.2%}"} | {('Despesas', f"(-) {d['Nome']}"): "R$ {:,.2f}" for d in st.session_state.lista_despesas}, na_rep="-"))
         with tab_dashboard:
             # (Código da aba de dashboard - sem alterações)
             st.header("Análise do Investidor")
