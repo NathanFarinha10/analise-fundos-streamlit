@@ -55,12 +55,14 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                 amort['Mês'] = st.number_input("Mês", value=amort['Mês'], min_value=1, max_value=duracao_anos*12, key=f"amort_mes_{i}")
                 amort['Valor'] = st.number_input("Valor (R$)", value=float(amort['Valor']), step=100000.0, key=f"amort_valor_{i}")
     
-    # --- ABA DE ATIVOS (LÓGICA CORRIGIDA) ---
+    # --- ABA DE ATIVOS (ATUALIZADA) ---
     with tab_ativos:
         st.header("Modelagem de Ativos do Fundo")
         if 'lista_ativos' not in st.session_state: st.session_state.lista_ativos = []
 
-        tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", ["Imobiliário - Renda", "Genérico"])
+        tipo_ativo_novo = st.selectbox("Selecione o tipo de ativo para adicionar:", 
+                                       ["Imobiliário - Renda", "CRI / CCI", "Genérico"])
+
         if st.button(f"Adicionar {tipo_ativo_novo}"):
             novo_ativo = {'tipo': tipo_ativo_novo}
             if tipo_ativo_novo == "Imobiliário - Renda":
@@ -68,6 +70,12 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                     'Nome': f"Imóvel {len(st.session_state.lista_ativos) + 1}", 'Valor Compra': 5000000.0, 'Mês Compra': 1,
                     'Receita Aluguel': 40000.0, 'Vacancia': 5.0, 'Indice Reajuste': 'IPCA',
                     'Custos Mensais': 2000.0, 'Cap Rate Saida': 7.0
+                })
+            elif tipo_ativo_novo == "CRI / CCI":
+                novo_ativo.update({
+                    'Nome': f"CRI {len(st.session_state.lista_ativos) + 1}", 'Principal': 3000000.0, 'Mês Investimento': 1,
+                    'Benchmark': 'IPCA', 'Tipo Taxa': 'Spread', 'Taxa': 6.0, 'Prazo': 120,
+                    'Amortizacao': 'SAC', 'Carencia': 0, 'Tranche': 'Sênior'
                 })
             else: # Genérico
                 novo_ativo.update({'Nome': f"Ativo Genérico {len(st.session_state.lista_ativos) + 1}", 'Valor': 2000000.0, 'Mês Investimento': 1, 'Benchmark': 'IPCA', 'Spread': 7.0})
@@ -81,8 +89,9 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                 st.markdown(f"**{ativo.get('Nome')}**")
                 ativo['Nome'] = st.text_input("Nome", value=ativo.get('Nome', ''), key=f"nome_{i}", label_visibility="collapsed")
                 
-                # --- LÓGICA DE EXIBIÇÃO CORRIGIDA ---
-                if ativo.get('tipo') == "Imobiliário - Renda":
+                tipo_ativo_atual = ativo.get('tipo')
+
+                if tipo_ativo_atual == "Imobiliário - Renda":
                     st.write("Parâmetros do Imóvel:")
                     ativo['Valor Compra'] = st.number_input("Valor de Compra (R$)", value=ativo['Valor Compra'], key=f"val_compra_{i}")
                     ativo['Mês Compra'] = st.number_input("Mês da Compra", value=ativo['Mês Compra'], key=f"mes_compra_{i}")
@@ -92,7 +101,20 @@ with st.expander("Painel de Configurações da Simulação", expanded=True):
                     st.write("Custos e Saída:")
                     ativo['Custos Mensais'] = st.number_input("Custos Fixos Mensais (R$)", value=ativo.get('Custos Mensais', 2000.0), key=f"custos_fixos_{i}")
                     ativo['Cap Rate Saida'] = st.number_input("Cap Rate de Saída (%)", value=ativo['Cap Rate Saida'], key=f"cap_rate_{i}")
-                else: # Trata como "Genérico" se o tipo não for imobiliário ou não existir
+                
+                elif tipo_ativo_atual == "CRI / CCI":
+                    st.write("Parâmetros do Título:")
+                    ativo['Principal'] = st.number_input("Principal (R$)", value=ativo['Principal'], key=f"principal_{i}")
+                    ativo['Mês Investimento'] = st.number_input("Mês do Invest.", value=ativo['Mês Investimento'], key=f"mes_invest_cri_{i}")
+                    ativo['Prazo'] = st.number_input("Prazo (meses)", value=ativo['Prazo'], key=f"prazo_{i}")
+                    ativo['Benchmark'] = st.selectbox("Benchmark", options=['IPCA', 'CDI', 'Pré-fixado'], key=f"bench_cri_{i}")
+                    ativo['Tipo Taxa'] = st.selectbox("Tipo de Taxa", options=['Spread', '% do Benchmark'], key=f"tipo_taxa_cri_{i}")
+                    ativo['Taxa'] = st.number_input("Taxa", value=ativo['Taxa'], key=f"taxa_cri_{i}")
+                    ativo['Amortizacao'] = st.selectbox("Amortização", options=['SAC', 'Price', 'Bullet'], key=f"amort_cri_{i}")
+                    ativo['Carencia'] = st.number_input("Carência de Amort. (meses)", value=ativo['Carencia'], key=f"carencia_cri_{i}")
+                    ativo['Tranche'] = st.selectbox("Série (Tranche)", options=['Sênior', 'Subordinada'], help="Lógica de subordinação será implementada no futuro.", key=f"tranche_cri_{i}")
+
+                else: # Genérico
                     st.write("Parâmetros do Ativo Genérico:")
                     ativo['Valor'] = st.number_input(f"Valor (R$)", value=float(ativo.get('Valor', 0.0)), step=100000.0, key=f"valor_{i}")
                     ativo['Mês Investimento'] = st.number_input(f"Mês Invest.", value=ativo.get('Mês Investimento', 1), min_value=1, max_value=duracao_anos*12, key=f"mes_{i}")
